@@ -1,5 +1,6 @@
 let etaSSlider, etaSValDisplay, lcToggle, canvasOriginal, canvasBoosted, canvasProjective, canvasTime, mathMatrix;
 let etaRSlider, etaRValDisplay, ampSlider, ampValDisplay, lemniToggle;
+let mmSlider, mmValDisplay;
 let ctxOrig, ctxBoost, ctxProj, ctxTime;
 let etaS = 0;
 let time = 0;
@@ -7,13 +8,57 @@ let spacelike = false;
 let lemniscate = false;
 
 // --- Motion of the point ------------------------------------------------
-// Toy oscillation about the centre etaR with amplitude etaAmp.
-// Replace etaOf() to plug in a solution of the actual equation of motion.
-let etaR = 0.2;   // centre of the oscillation
-let etaAmp = 0.2; // amplitude
+let etaR = 0.2;   // centre of the oscillation, eta_r
+let etaAmp = 0.2; // amplitude, i.e. Delta_max
 const WINDOW_T = 10; // seconds shown in the time chart
 
-function etaOf(t) { return etaR + etaAmp * Math.cos(t); }
+// The radial mode obeys
+//     (1/2) etaDot^2 = -M cosh 4 Delta + alpha_1D^2 / 4,   Delta = eta - eta_r,
+// whose turning points satisfy cosh 4 Delta_max = alpha_1D^2 / (4 M). Fixing M
+// and reading the amplitude off the slider therefore fixes alpha_1D^2, and
+// differentiating gives the second-order form integrated below.
+let MM = 0.1; // the invariant M; sets the overall time scale
+
+function alphaSq() { return 4 * MM * Math.cosh(4 * etaAmp); }
+
+// Complete elliptic integral of the first kind by the arithmetic-geometric mean
+function ellipticK(k) {
+    let a = 1, b = Math.sqrt(Math.max(1 - k * k, 0));
+    for (let i = 0; i < 40 && Math.abs(a - b) > 1e-15; i++) {
+        const an = 0.5 * (a + b);
+        b = Math.sqrt(a * b);
+        a = an;
+    }
+    return Math.PI / (2 * a);
+}
+
+// With alpha^2 = 4 M cosh 4 eta_0 the period collapses to a function of the
+// amplitude alone, up to the overall scale sqrt(M):
+//     T = K(tanh 2 eta_0) / (sqrt(M) cosh 2 eta_0),  eta_0 = Delta_max.
+function period() {
+    return ellipticK(Math.tanh(2 * etaAmp)) / (Math.sqrt(MM) * Math.cosh(2 * etaAmp));
+}
+function accel(eta) { return -4 * MM * Math.sinh(4 * (eta - etaR)); }
+
+let etaState = etaR + etaAmp;
+let etaDot = 0;
+let history = [];
+
+function resetMotion() {
+    etaState = etaR + etaAmp; // start at a turning point
+    etaDot = 0;
+    history = [{ t: time, eta: etaState }];
+}
+
+function stepMotion(dt) {
+    const sub = 16, h = dt / sub;
+    for (let i = 0; i < sub; i++) {
+        const a1 = accel(etaState);
+        etaState += etaDot * h + 0.5 * a1 * h * h;
+        const a2 = accel(etaState);
+        etaDot += 0.5 * (a1 + a2) * h;
+    }
+}
 
 // --- Sectors ------------------------------------------------------------
 // A point is given by (s, u): s = spatial component, u = temporal component.
@@ -41,11 +86,20 @@ function updateUI() {
     etaSValDisplay.textContent = etaS.toFixed(2);
     if (etaRValDisplay) etaRValDisplay.textContent = etaR.toFixed(2);
     if (ampValDisplay) ampValDisplay.textContent = etaAmp.toFixed(2);
+    if (mmValDisplay) mmValDisplay.textContent = MM.toFixed(3);
+    const invBox = document.getElementById('invariants');
+    if (invBox && typeof katex !== 'undefined') {
+        try {
+            katex.render(
+                `\\begin{aligned} \\alpha_{\\mathrm{1D}}^{2} &= 4\\mathcal{M}\\cosh 4\\eta_0 = ${alphaSq().toFixed(3)} \\\\[0.5ex] \\mathcal{T} &= \\frac{K(\\tanh 2\\eta_0)}{\\sqrt{\\mathcal{M}}\\,\\cosh 2\\eta_0} = ${period().toFixed(3)} \\end{aligned}`,
+                invBox, { throwOnError: false, displayMode: true });
+        } catch (e) { /* ignore */ }
+    }
 
     const ch = Math.cosh(etaS).toFixed(2);
     const sh = Math.sinh(etaS).toFixed(2);
 
-    const matrixTex = `\\begin{aligned} x' &= \\Lambda(\\eta_s)\\,x, \\qquad e'_a = \\Lambda(-\\eta_s)\\,e_a \\\\[1.2ex] \\Lambda(\\eta_s) &= \\begin{pmatrix} \\cosh \\eta_s & \\sinh \\eta_s \\\\ \\sinh \\eta_s & \\cosh \\eta_s \\end{pmatrix} \\approx \\begin{pmatrix} ${ch} & ${sh} \\\\ ${sh} & ${ch} \\end{pmatrix} \\end{aligned}`;
+    const matrixTex = `\\begin{aligned} x' &= \\Lambda(\\eta_s)\\,x \\\\[0.3ex] e'_a &= \\Lambda(-\\eta_s)\\,e_a \\\\[0.8ex] \\Lambda(\\eta_s) &= \\begin{pmatrix} \\cosh \\eta_s & \\sinh \\eta_s \\\\ \\sinh \\eta_s & \\cosh \\eta_s \\end{pmatrix} \\\\[0.5ex] &\\approx \\begin{pmatrix} ${ch} & ${sh} \\\\ ${sh} & ${ch} \\end{pmatrix} \\end{aligned}`;
     if (typeof katex !== 'undefined' && mathMatrix) {
         try {
             katex.render(matrixTex, mathMatrix, {
@@ -229,14 +283,6 @@ function drawProjectionRay(ctx, P, eta) {
         "rgba(16, 185, 129, 0.35)", 1, [3, 4]);
 }
 
-function drawSectorLabel(ctx, width) {
-    ctx.font = "12px Inter";
-    ctx.fillStyle = "#64748b";
-    ctx.textAlign = "right";
-    ctx.fillText(spacelike ? "s² − u² = 1" : "u² − s² = 1", width - 10, 18);
-    ctx.textAlign = "left";
-}
-
 // --- The two frame canvases --------------------------------------------
 
 function drawFrame(ctx, canvas, boosted) {
@@ -250,7 +296,6 @@ function drawFrame(ctx, canvas, boosted) {
     drawGrid(ctx, P, reach);
     drawNullLines(ctx, P, reach);
     drawHyperbola(ctx, P);
-    drawSectorLabel(ctx, width);
 
     // Basis vectors. The state transforms as eta -> eta + eta_s, so coordinates
     // go with Lambda(eta_s) and the basis with its inverse Lambda(-eta_s):
@@ -260,15 +305,15 @@ function drawFrame(ctx, canvas, boosted) {
     const grey = "#94a3b8", blue = "#3b82f6", red = "#ef4444";
 
     if (boosted) {
-        drawVector(ctx, P, 1, 0, blue, "e'₁");
-        drawVector(ctx, P, 0, 1, red, "e'₂");
-        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), grey, "e₁");
-        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), grey, "e₂");
+        drawVector(ctx, P, 1, 0, blue, "W'₁");
+        drawVector(ctx, P, 0, 1, red, "W'₂");
+        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), grey, "W₁");
+        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), grey, "W₂");
     } else {
-        drawVector(ctx, P, 1, 0, grey, "e₁");
-        drawVector(ctx, P, 0, 1, grey, "e₂");
-        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), blue, "e'₁");
-        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), red, "e'₂");
+        drawVector(ctx, P, 1, 0, grey, "W₁");
+        drawVector(ctx, P, 0, 1, grey, "W₂");
+        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), blue, "W'₁");
+        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), red, "W'₂");
     }
 
     // The band swept by the motion, its two turning points, and the fixed
@@ -283,7 +328,7 @@ function drawFrame(ctx, canvas, boosted) {
     drawTick(ctx, P, cEta + etaAmp, amber, 9);
     drawCentre(ctx, P, cEta, amber);
 
-    const eta = etaOf(time) - shift;
+    const eta = etaState - shift;
 
     // Optional projection onto the lemniscate along the same rays
     if (lemniscate) {
@@ -386,8 +431,8 @@ function drawProjectiveFrame(ctx) {
     }
     ctx.stroke();
 
-    const v = Math.tanh(etaOf(time));
-    const vp = Math.tanh(etaOf(time) + etaS);
+    const v = Math.tanh(etaState);
+    const vp = Math.tanh(etaState + etaS);
 
     // Either coordinate going negative means the state has no image on the
     // lemniscate in that frame, since tanh(eta) = x^2 >= 0 there.
@@ -471,17 +516,16 @@ function drawTimeFrame(ctx) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        for (let px = 0; px <= plotW; px++) {
-            const t = time - WINDOW_T + (px / plotW) * WINDOW_T;
-            const y = toY(etaOf(t) - shift);
-            if (px === 0) ctx.moveTo(padL + px, y);
-            else ctx.lineTo(padL + px, y);
-        }
+        history.forEach((p, i) => {
+            const x = padL + ((p.t - (time - WINDOW_T)) / WINDOW_T) * plotW;
+            const y = toY(p.eta - shift);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
         ctx.stroke();
 
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(padL + plotW, toY(etaOf(time) - shift), 5, 0, Math.PI * 2);
+        ctx.arc(padL + plotW, toY(etaState - shift), 5, 0, Math.PI * 2);
         ctx.fill();
     };
 
@@ -493,13 +537,17 @@ function drawTimeFrame(ctx) {
     ctx.font = "12px Inter";
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#10b981";
-    ctx.fillText(`η = ${etaOf(time).toFixed(2)}`, padL + 8, padT + 14);
+    ctx.fillText(`η = ${etaState.toFixed(2)}`, padL + 8, padT + 14);
     ctx.fillStyle = "#a855f7";
-    ctx.fillText(`η' = η + ηₛ = ${(etaOf(time) + etaS).toFixed(2)}`, padL + 90, padT + 14);
+    ctx.fillText(`η' = η + ηₛ = ${(etaState + etaS).toFixed(2)}`, padL + 90, padT + 14);
 }
 
 function animate() {
-    time += 0.02;
+    const dt = 0.02;
+    time += dt;
+    stepMotion(dt);
+    history.push({ t: time, eta: etaState });
+    while (history.length > 1 && history[0].t < time - WINDOW_T) history.shift();
 
     if (ctxOrig) drawFrame(ctxOrig, canvasOriginal, false);
     if (ctxBoost) drawFrame(ctxBoost, canvasBoosted, true);
@@ -532,8 +580,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ampSlider = document.getElementById('amp-slider');
     ampValDisplay = document.getElementById('amp-val');
 
+    mmSlider = document.getElementById('mm-slider');
+    mmValDisplay = document.getElementById('mm-val');
+
     if (etaRSlider) etaR = parseFloat(etaRSlider.value);
     if (ampSlider) etaAmp = parseFloat(ampSlider.value);
+    if (mmSlider) MM = parseFloat(mmSlider.value);
 
     etaSSlider.addEventListener('input', (e) => {
         etaS = parseFloat(e.target.value);
@@ -543,6 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (etaRSlider) {
         etaRSlider.addEventListener('input', (e) => {
             etaR = parseFloat(e.target.value);
+            resetMotion();
             updateUI();
         });
     }
@@ -550,6 +603,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ampSlider) {
         ampSlider.addEventListener('input', (e) => {
             etaAmp = parseFloat(e.target.value);
+            resetMotion();
+            updateUI();
+        });
+    }
+
+    if (mmSlider) {
+        mmSlider.addEventListener('input', (e) => {
+            MM = parseFloat(e.target.value);
+            resetMotion();
             updateUI();
         });
     }
@@ -571,6 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    resetMotion();
     updateUI();
     animate();
 });

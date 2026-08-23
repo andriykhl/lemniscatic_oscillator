@@ -162,17 +162,19 @@ input[type=range]::-webkit-slider-runnable-track {
 
 .math-content {
   background: rgba(0, 0, 0, 0.3);
-  padding: 1rem;
+  padding: 0.9rem 0.6rem;
   border-radius: 8px;
   text-align: center;
-  font-size: 1.1rem;
-  overflow: hidden; /* Prevent scrollbars from popping in/out */
-  height: 200px; /* STRICT fixed height */
-  width: 100%; /* STRICT fixed width */
+  width: 100%;
+  overflow-x: auto;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
+/* Keep the rendered formulas inside the narrow control panel. */
+.math-content .katex { font-size: 0.82em; }
+.math-content .katex-display { margin: 0; }
 
 .visualizations {
   flex: 1;
