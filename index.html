@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minkowski Space Lorentz Transformation</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>2D Minkowski Space &amp; Lorentz Boosts</h1>
+    <p>Visualizing transformations, hyperbolic motion, and projective coordinates</p>
+  </header>
+
+  <main class="container">
+    <aside class="panel">
+      <h2 class="section-title">Controls</h2>
+
+      <div class="control-group">
+        <label>
+          <span>Boost rapidity &eta;<sub>s</sub></span>
+          <span class="value-display" id="etas-val">0.00</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="etas-slider" min="-2" max="2" step="0.01" value="0">
+        </div>
+        <p class="hint">
+          The parameter of the coordinate transformation. The basis vectors
+          carry the inverse, &minus;&eta;<sub>s</sub>.
+        </p>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>Centre &eta;<sub>r</sub></span>
+          <span class="value-display" id="etar-val">0.20</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="etar-slider" min="-1.5" max="1.5" step="0.01" value="0.2">
+        </div>
+        <p class="hint">Shifts the point the motion oscillates about.</p>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>Amplitude &Delta;&eta;</span>
+          <span class="value-display" id="amp-val">0.20</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="amp-slider" min="0" max="1.2" step="0.01" value="0.2">
+        </div>
+        <p class="hint">The boost moves the centre but never the amplitude.</p>
+      </div>
+
+      <div class="control-group">
+        <label class="toggle">
+          <input type="checkbox" id="spacelike-toggle">
+          <span>Spacelike sector</span>
+        </label>
+        <p class="hint">
+          Reflects the picture in the null line y = x, so the motion runs on
+          s&sup2; &minus; u&sup2; = 1 instead of u&sup2; &minus; s&sup2; = 1.
+          The light cone is the mirror and stays put, and the reflection commutes
+          with the boost &mdash; the same &Lambda;(&eta;<sub>s</sub>) drives the motion in either sector.
+        </p>
+      </div>
+
+      <div class="control-group">
+        <label class="toggle">
+          <input type="checkbox" id="lemniscate-toggle">
+          <span>Project onto the lemniscate</span>
+        </label>
+        <p class="hint">
+          Draws the lemniscate and projects the motion onto it along the rays
+          through the origin, since X/Y = tanh&thinsp;&eta;. The centre and the
+          band of oscillation are marked on both curves.
+        </p>
+      </div>
+
+      <div class="info-group">
+        <h3>Current Transformation</h3>
+        <div id="math-matrix" class="math-content"></div>
+      </div>
+    </aside>
+
+    <section class="panel visualizations">
+      <div class="canvas-row">
+        <div class="canvas-container">
+          <div class="canvas-title">Rest Frame (e₁, e₂)</div>
+          <canvas id="canvas-original" width="400" height="400"></canvas>
+        </div>
+
+        <div class="canvas-container">
+          <div class="canvas-title">Boosted Frame (e'₁, e'₂)</div>
+          <canvas id="canvas-boosted" width="400" height="400"></canvas>
+        </div>
+      </div>
+
+      <div class="canvas-container full-width">
+        <div class="canvas-title">Projective Coordinate (tanh &eta;' vs tanh &eta;)</div>
+        <canvas id="canvas-projective" width="800" height="200"></canvas>
+      </div>
+
+      <div class="canvas-container full-width">
+        <div class="canvas-title">Rapidity vs Time — both frames</div>
+        <canvas id="canvas-time" width="800" height="260"></canvas>
+        <p class="canvas-note">
+          The boost shifts the curve by &eta;<sub>s</sub> without changing its shape:
+          the amplitude and the period are the same in both frames, and the
+          dashed lines mark the two centres of oscillation, &eta;<sub>r</sub>
+          and &eta;<sub>r</sub> + &eta;<sub>s</sub>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

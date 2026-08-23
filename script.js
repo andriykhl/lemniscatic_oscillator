@@ -1,0 +1,576 @@
+let etaSSlider, etaSValDisplay, lcToggle, canvasOriginal, canvasBoosted, canvasProjective, canvasTime, mathMatrix;
+let etaRSlider, etaRValDisplay, ampSlider, ampValDisplay, lemniToggle;
+let ctxOrig, ctxBoost, ctxProj, ctxTime;
+let etaS = 0;
+let time = 0;
+let spacelike = false;
+let lemniscate = false;
+
+// --- Motion of the point ------------------------------------------------
+// Toy oscillation about the centre etaR with amplitude etaAmp.
+// Replace etaOf() to plug in a solution of the actual equation of motion.
+let etaR = 0.2;   // centre of the oscillation
+let etaAmp = 0.2; // amplitude
+const WINDOW_T = 10; // seconds shown in the time chart
+
+function etaOf(t) { return etaR + etaAmp * Math.cos(t); }
+
+// --- Sectors ------------------------------------------------------------
+// A point is given by (s, u): s = spatial component, u = temporal component.
+// Timelike sector : drawn as is, the particle runs on u^2 - s^2 = 1.
+// Spacelike sector: everything is reflected in the null line u = s, i.e.
+//                   (s, u) -> (u, s), so the particle runs on s^2 - u^2 = 1.
+// The reflection fixes the light cone pointwise on u = s and as a set on
+// u = -s, and it commutes with the boost, which is why the same Lambda
+// generates the motion in either sector.
+
+function project(s, u) {
+    return spacelike ? [u, s] : [s, u];
+}
+
+function viewOrigin(width, height) {
+    return [width / 2, height / 2];
+}
+
+function viewScale() {
+    return 50;
+}
+
+// Update UI and Math
+function updateUI() {
+    etaSValDisplay.textContent = etaS.toFixed(2);
+    if (etaRValDisplay) etaRValDisplay.textContent = etaR.toFixed(2);
+    if (ampValDisplay) ampValDisplay.textContent = etaAmp.toFixed(2);
+
+    const ch = Math.cosh(etaS).toFixed(2);
+    const sh = Math.sinh(etaS).toFixed(2);
+
+    const matrixTex = `\\begin{aligned} x' &= \\Lambda(\\eta_s)\\,x, \\qquad e'_a = \\Lambda(-\\eta_s)\\,e_a \\\\[1.2ex] \\Lambda(\\eta_s) &= \\begin{pmatrix} \\cosh \\eta_s & \\sinh \\eta_s \\\\ \\sinh \\eta_s & \\cosh \\eta_s \\end{pmatrix} \\approx \\begin{pmatrix} ${ch} & ${sh} \\\\ ${sh} & ${ch} \\end{pmatrix} \\end{aligned}`;
+    if (typeof katex !== 'undefined' && mathMatrix) {
+        try {
+            katex.render(matrixTex, mathMatrix, {
+                throwOnError: false,
+                displayMode: true
+            });
+        } catch (e) {
+            console.error("KaTeX rendering error:", e);
+        }
+    }
+}
+
+// --- Drawing utilities --------------------------------------------------
+
+function makePlotter(ctx, width, height) {
+    const [cx, cy] = viewOrigin(width, height);
+    const scale = viewScale();
+    return {
+        cx, cy, scale,
+        // screen position of the point with components (s, u)
+        pt(s, u) {
+            const [h, v] = project(s, u);
+            return [cx + h * scale, cy - v * scale];
+        }
+    };
+}
+
+function strokePath(ctx, points, color, lineWidth, dash) {
+    if (!points.length) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.stroke();
+    if (dash) ctx.setLineDash([]);
+}
+
+function drawGrid(ctx, P, reach) {
+    // The axes of the rest frame: the time axis (s = 0) and the space axis (u = 0).
+    const faint = "rgba(255, 255, 255, 0.2)";
+    strokePath(ctx, [P.pt(-reach, 0), P.pt(reach, 0)], faint, 1);
+    strokePath(ctx, [P.pt(0, -reach), P.pt(0, reach)], faint, 1);
+}
+
+function drawNullLines(ctx, P, reach) {
+    const yellow = "#eab308";
+    strokePath(ctx, [P.pt(-reach, -reach), P.pt(reach, reach)], yellow, 1.5, [5, 5]);
+    strokePath(ctx, [P.pt(reach, -reach), P.pt(-reach, reach)], yellow, 1.5, [5, 5]);
+}
+
+function drawHyperbola(ctx, P) {
+    // u^2 - s^2 = 1, upper branch, parametrized by rapidity
+    const pts = [];
+    for (let e = -3.6; e <= 3.6; e += 0.05) {
+        pts.push(P.pt(Math.sinh(e), Math.cosh(e)));
+    }
+    strokePath(ctx, pts, "rgba(255, 255, 255, 0.5)", 2);
+}
+
+function drawVector(ctx, P, s, u, color, label) {
+    const [x0, y0] = P.pt(0, 0);
+    const [x1, y1] = P.pt(s, u);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+
+    const angle = Math.atan2(y1 - y0, x1 - x0);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - 10 * Math.cos(angle - Math.PI / 6), y1 - 10 * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x1 - 10 * Math.cos(angle + Math.PI / 6), y1 - 10 * Math.sin(angle + Math.PI / 6));
+    ctx.fill();
+
+    if (label) {
+        ctx.font = "14px Inter";
+        ctx.fillText(label, x1 + 6, y1 - 6);
+    }
+}
+
+function drawDot(ctx, P, s, u, color) {
+    const [x, y] = P.pt(s, u);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawArc(ctx, P, etaFrom, etaTo, color, lineWidth) {
+    const pts = [];
+    const steps = 80;
+    for (let i = 0; i <= steps; i++) {
+        const e = etaFrom + (etaTo - etaFrom) * (i / steps);
+        pts.push(P.pt(Math.sinh(e), Math.cosh(e)));
+    }
+    strokePath(ctx, pts, color, lineWidth);
+}
+
+function drawTick(ctx, P, eta, color, half) {
+    // short mark across the hyperbola, along its normal-ish direction
+    const [x, y] = P.pt(Math.sinh(eta), Math.cosh(eta));
+    const [xa, ya] = P.pt(Math.sinh(eta - 0.02), Math.cosh(eta - 0.02));
+    const [xb, yb] = P.pt(Math.sinh(eta + 0.02), Math.cosh(eta + 0.02));
+    const dx = xb - xa, dy = yb - ya;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    strokePath(ctx, [[x - nx * half, y - ny * half], [x + nx * half, y + ny * half]], color, 2);
+}
+
+function drawCentre(ctx, P, eta, color) {
+    const [x, y] = P.pt(Math.sinh(eta), Math.cosh(eta));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+    ctx.stroke();
+}
+
+// --- Lemniscate overlay -------------------------------------------------
+// The projective coordinate of a state is w = tanh(eta) = X/Y, so the point of
+// the lemniscate lies on the same ray from the origin as the point of the
+// hyperbola. With rho^2 = X^2 + Y^2 = w/(1+w^2) this gives the rational
+// parametrization X = w^{3/2}/(1+w^2), Y = w^{1/2}/(1+w^2).
+
+function lemniPoint(eta) {
+    // w = tanh(eta) must be non-negative: w = x^2 on the lemniscate.
+    // For eta < 0 there is no point of the curve on that ray, so we clamp to
+    // the node and report the state as unmappable.
+    const w = Math.tanh(eta);
+    if (w < 0) return [0, 0, false];
+    const d = 1 + w * w;
+    return [Math.pow(w, 1.5) / d, Math.sqrt(w) / d, true];
+}
+
+function drawLemniscate(ctx, P) {
+    const pts = [];
+    for (let x = -6; x <= 6; x += 0.02) {
+        const d = 1 + x * x * x * x;
+        pts.push(P.pt(x * x * x / d, x / d));
+    }
+    strokePath(ctx, pts, "rgba(148, 163, 184, 0.55)", 1.5);
+}
+
+function drawLemniArc(ctx, P, etaFrom, etaTo, color, lineWidth) {
+    const pts = [];
+    const steps = 90;
+    for (let i = 0; i <= steps; i++) {
+        const e = etaFrom + (etaTo - etaFrom) * (i / steps);
+        const [X, Y] = lemniPoint(e);
+        pts.push(P.pt(X, Y));
+    }
+    strokePath(ctx, pts, color, lineWidth);
+}
+
+function drawLemniMark(ctx, P, eta, color, filled) {
+    const [X, Y, ok] = lemniPoint(eta);
+    const [x, y] = P.pt(X, Y);
+    const c = ok ? color : "#ef4444"; // red when the ray misses the curve
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    if (filled) { ctx.fillStyle = c; ctx.fill(); }
+    else { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.stroke(); }
+    if (!ok) {
+        // small cross at the node to say the projection is undefined
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 7, y - 7); ctx.lineTo(x + 7, y + 7);
+        ctx.moveTo(x + 7, y - 7); ctx.lineTo(x - 7, y + 7);
+        ctx.stroke();
+    }
+}
+
+function drawProjectionRay(ctx, P, eta) {
+    strokePath(ctx,
+        [P.pt(0, 0), P.pt(Math.sinh(eta), Math.cosh(eta))],
+        "rgba(16, 185, 129, 0.35)", 1, [3, 4]);
+}
+
+function drawSectorLabel(ctx, width) {
+    ctx.font = "12px Inter";
+    ctx.fillStyle = "#64748b";
+    ctx.textAlign = "right";
+    ctx.fillText(spacelike ? "s² − u² = 1" : "u² − s² = 1", width - 10, 18);
+    ctx.textAlign = "left";
+}
+
+// --- The two frame canvases --------------------------------------------
+
+function drawFrame(ctx, canvas, boosted) {
+    if (!canvas) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const P = makePlotter(ctx, width, height);
+    const reach = 12;
+
+    ctx.clearRect(0, 0, width, height);
+    drawGrid(ctx, P, reach);
+    drawNullLines(ctx, P, reach);
+    drawHyperbola(ctx, P);
+    drawSectorLabel(ctx, width);
+
+    // Basis vectors. The state transforms as eta -> eta + eta_s, so coordinates
+    // go with Lambda(eta_s) and the basis with its inverse Lambda(-eta_s):
+    // the primed legs drawn in the rest-frame canvas are (cosh, -sinh) and
+    // (-sinh, cosh). In the boosted canvas the roles are swapped.
+    const th = boosted ? etaS : -etaS;
+    const grey = "#94a3b8", blue = "#3b82f6", red = "#ef4444";
+
+    if (boosted) {
+        drawVector(ctx, P, 1, 0, blue, "e'₁");
+        drawVector(ctx, P, 0, 1, red, "e'₂");
+        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), grey, "e₁");
+        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), grey, "e₂");
+    } else {
+        drawVector(ctx, P, 1, 0, grey, "e₁");
+        drawVector(ctx, P, 0, 1, grey, "e₂");
+        drawVector(ctx, P, Math.cosh(th), Math.sinh(th), blue, "e'₁");
+        drawVector(ctx, P, Math.sinh(th), Math.cosh(th), red, "e'₂");
+    }
+
+    // The band swept by the motion, its two turning points, and the fixed
+    // centre of oscillation. In the boosted canvas everything is shifted by
+    // +eta_s, so the band keeps its width: the boost moves the centre only.
+    const shift = boosted ? -etaS : 0;
+    const cEta = etaR - shift;
+    const amber = "#f59e0b";
+
+    drawArc(ctx, P, cEta - etaAmp, cEta + etaAmp, amber, 5);
+    drawTick(ctx, P, cEta - etaAmp, amber, 9);
+    drawTick(ctx, P, cEta + etaAmp, amber, 9);
+    drawCentre(ctx, P, cEta, amber);
+
+    const eta = etaOf(time) - shift;
+
+    // Optional projection onto the lemniscate along the same rays
+    if (lemniscate) {
+        drawLemniscate(ctx, P);
+        if (cEta + etaAmp > 0) {
+            const clipped = cEta - etaAmp < 0;
+            drawLemniArc(ctx, P, Math.max(cEta - etaAmp, 0), cEta + etaAmp,
+                         clipped ? "#ef4444" : amber, 4);
+            drawLemniMark(ctx, P, cEta, amber, false);
+        }
+        drawProjectionRay(ctx, P, eta);
+        drawLemniMark(ctx, P, eta, "#10b981", true);
+    }
+
+    // The particle
+    drawDot(ctx, P, Math.sinh(eta), Math.cosh(eta), "#10b981");
+}
+
+// --- Projective coordinate chart ---------------------------------------
+
+function drawProjectiveFrame(ctx) {
+    if (!canvasProjective) return;
+    const width = canvasProjective.width;
+    const height = canvasProjective.height;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const scaleX = 200;
+    const scaleY = 50;
+    const V = Math.tanh(etaS);
+
+    // Oscillation band and centre, marked on both axes.
+    // On the x axis the band is [tanh(etaR - amp), tanh(etaR + amp)];
+    // on the y axis it is the same interval shifted by the boost.
+    const amber = "#f59e0b";
+    const xLo = Math.tanh(etaR - etaAmp) * scaleX + cx;
+    const xHi = Math.tanh(etaR + etaAmp) * scaleX + cx;
+    const yLo = cy - Math.tanh(etaR - etaAmp + etaS) * scaleY;
+    const yHi = cy - Math.tanh(etaR + etaAmp + etaS) * scaleY;
+    const xC = cx + Math.tanh(etaR) * scaleX;
+    const yC = cy - Math.tanh(etaR + etaS) * scaleY;
+
+    // The bands are drawn only in the first quadrant, where both coordinates
+    // are non-negative and the state has an image on the lemniscate.
+    const qx = Math.max(Math.min(xLo, xHi), cx);
+    const qw = Math.max(0, Math.max(xLo, xHi) - qx);
+    const qy = Math.min(Math.min(yLo, yHi), cy);
+    const qh = Math.max(0, Math.min(Math.max(yLo, yHi), cy) - qy);
+
+    ctx.fillStyle = "rgba(245, 158, 11, 0.14)";
+    if (qw > 0) ctx.fillRect(qx, 0, qw, cy);
+    if (qh > 0) ctx.fillRect(cx, qy, width - cx, qh);
+
+    ctx.strokeStyle = "rgba(245, 158, 11, 0.55)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    if (xC >= cx) { ctx.moveTo(xC, 0); ctx.lineTo(xC, cy); }
+    if (yC <= cy) { ctx.moveTo(cx, yC); ctx.lineTo(width, yC); }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, cy); ctx.lineTo(width, cy);
+    ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
+    ctx.stroke();
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "14px Inter";
+    ctx.fillText("tanh(η)", width - 60, cy - 10);
+    ctx.fillText("tanh(η')", cx + 10, 20);
+
+    ctx.strokeStyle = "rgba(239, 68, 68, 0.4)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    if (Math.abs(V) > 0.01) {
+        const asymX = cx - (1 / V) * scaleX;
+        ctx.moveTo(asymX, 0); ctx.lineTo(asymX, height);
+        const asymY = cy - (1 / V) * scaleY;
+        ctx.moveTo(0, asymY); ctx.lineTo(width, asymY);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = "#a855f7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i <= width; i++) {
+        const v = (i - cx) / scaleX;
+        if (Math.abs(1 + v * V) < 0.01) { first = true; continue; }
+        const vp = (v + V) / (1 + v * V);
+        const py = cy - vp * scaleY;
+        if (first) { ctx.moveTo(i, py); first = false; }
+        else ctx.lineTo(i, py);
+    }
+    ctx.stroke();
+
+    const v = Math.tanh(etaOf(time));
+    const vp = Math.tanh(etaOf(time) + etaS);
+
+    // Either coordinate going negative means the state has no image on the
+    // lemniscate in that frame, since tanh(eta) = x^2 >= 0 there.
+    const mappable = v >= 0 && vp >= 0;
+    ctx.fillStyle = mappable ? "#10b981" : "#ef4444";
+    ctx.beginPath();
+    ctx.arc(cx + v * scaleX, cy - vp * scaleY, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Shade the quadrants that cannot be mapped
+    ctx.fillStyle = "rgba(239, 68, 68, 0.07)";
+    ctx.fillRect(0, 0, cx, height);          // tanh(eta) < 0
+    ctx.fillRect(0, cy, width, height - cy); // tanh(eta') < 0
+}
+
+// --- Rapidity vs time ---------------------------------------------------
+
+function dashedLine(ctx, x0, y, x1, color) {
+    ctx.strokeStyle = color;
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function drawTimeFrame(ctx) {
+    if (!canvasTime) return;
+    const width = canvasTime.width;
+    const height = canvasTime.height;
+
+    const padL = 46, padR = 14, padT = 18, padB = 26;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+    const y0 = padT + plotH / 2;
+    const range = 3.0;
+    const scaleY = (plotH / 2) / range;
+
+    const toY = (eta) => y0 - eta * scaleY;
+
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.font = "11px Inter";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let v = -3; v <= 3; v += 1) {
+        const y = toY(v);
+        if (y < padT - 1 || y > padT + plotH + 1) continue;
+        ctx.strokeStyle = v === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.07)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y);
+        ctx.stroke();
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(v.toFixed(0), padL - 8, y);
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.beginPath();
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px Inter";
+    ctx.fillText("η", 8, padT + 4);
+    ctx.textAlign = "right";
+    ctx.fillText("t", width - padR, padT + plotH + 18);
+    ctx.textAlign = "left";
+
+    dashedLine(ctx, padL, toY(etaR), padL + plotW, "rgba(16,185,129,0.45)");
+    dashedLine(ctx, padL, toY(etaR + etaS), padL + plotW, "rgba(168,85,247,0.45)");
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padL, padT, plotW, plotH);
+    ctx.clip();
+
+    const drawCurve = (shift, color) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let px = 0; px <= plotW; px++) {
+            const t = time - WINDOW_T + (px / plotW) * WINDOW_T;
+            const y = toY(etaOf(t) - shift);
+            if (px === 0) ctx.moveTo(padL + px, y);
+            else ctx.lineTo(padL + px, y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(padL + plotW, toY(etaOf(time) - shift), 5, 0, Math.PI * 2);
+        ctx.fill();
+    };
+
+    drawCurve(0, "#10b981");
+    drawCurve(-etaS, "#a855f7");
+
+    ctx.restore();
+
+    ctx.font = "12px Inter";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#10b981";
+    ctx.fillText(`η = ${etaOf(time).toFixed(2)}`, padL + 8, padT + 14);
+    ctx.fillStyle = "#a855f7";
+    ctx.fillText(`η' = η + ηₛ = ${(etaOf(time) + etaS).toFixed(2)}`, padL + 90, padT + 14);
+}
+
+function animate() {
+    time += 0.02;
+
+    if (ctxOrig) drawFrame(ctxOrig, canvasOriginal, false);
+    if (ctxBoost) drawFrame(ctxBoost, canvasBoosted, true);
+    if (ctxProj) drawProjectiveFrame(ctxProj);
+    if (ctxTime) drawTimeFrame(ctxTime);
+
+    requestAnimationFrame(animate);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    etaSSlider = document.getElementById('etas-slider');
+    etaSValDisplay = document.getElementById('etas-val');
+    lcToggle = document.getElementById('spacelike-toggle');
+    canvasOriginal = document.getElementById('canvas-original');
+    canvasBoosted = document.getElementById('canvas-boosted');
+    canvasProjective = document.getElementById('canvas-projective');
+    canvasTime = document.getElementById('canvas-time');
+    mathMatrix = document.getElementById('math-matrix');
+
+    ctxOrig = canvasOriginal ? canvasOriginal.getContext('2d') : null;
+    ctxBoost = canvasBoosted ? canvasBoosted.getContext('2d') : null;
+    ctxProj = canvasProjective ? canvasProjective.getContext('2d') : null;
+    ctxTime = canvasTime ? canvasTime.getContext('2d') : null;
+
+    etaS = parseFloat(etaSSlider.value);
+
+    etaRSlider = document.getElementById('etar-slider');
+    etaRValDisplay = document.getElementById('etar-val');
+    ampSlider = document.getElementById('amp-slider');
+    ampValDisplay = document.getElementById('amp-val');
+
+    if (etaRSlider) etaR = parseFloat(etaRSlider.value);
+    if (ampSlider) etaAmp = parseFloat(ampSlider.value);
+
+    etaSSlider.addEventListener('input', (e) => {
+        etaS = parseFloat(e.target.value);
+        updateUI();
+    });
+
+    if (etaRSlider) {
+        etaRSlider.addEventListener('input', (e) => {
+            etaR = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    if (ampSlider) {
+        ampSlider.addEventListener('input', (e) => {
+            etaAmp = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    lemniToggle = document.getElementById('lemniscate-toggle');
+    if (lemniToggle) {
+        lemniscate = lemniToggle.checked;
+        lemniToggle.addEventListener('change', (e) => {
+            lemniscate = e.target.checked;
+            updateUI();
+        });
+    }
+
+    if (lcToggle) {
+        spacelike = lcToggle.checked;
+        lcToggle.addEventListener('change', (e) => {
+            spacelike = e.target.checked;
+            updateUI();
+        });
+    }
+
+    updateUI();
+    animate();
+});
