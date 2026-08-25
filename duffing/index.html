@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duffing vs Direct Integration of the Lemniscatic Oscillator</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <h1>Duffing route vs direct integration</h1>
+    <p>
+      Two independent numerical solutions of the same one-dimensional lemniscatic
+      oscillator, sharing only the parameters
+      &alpha;<sub>1D</sub><sup>2</sup> and E<sub>1D</sub>.
+    </p>
+  </header>
+
+  <main class="container">
+    <aside class="panel">
+      <h2 class="section-title">Parameters</h2>
+
+      <div class="control-group">
+        <label>
+          <span>&alpha;<sub>1D</sub><sup>2</sup></span>
+          <span class="value-display" id="a2-val">1.00</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="a2-slider" min="0.10" max="3.00" step="0.01" value="1.00">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <span>E<sub>1D</sub></span>
+          <span class="value-display" id="e-val">0.150</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="e-slider" min="0.005" max="0.80" step="0.005" value="0.150">
+        </div>
+      </div>
+
+      <div class="info-group">
+        <h3>Derived</h3>
+        <table class="readout" id="readout"></table>
+      </div>
+
+      <div class="info-group">
+        <h3>Branch</h3>
+        <label class="toggle">
+          <input type="checkbox" id="outer-toggle">
+          <span>Outer branch, r &gt; 1</span>
+        </label>
+        <p class="hint">
+          Below the barrier U(x) has two allowed regions, exchanged by
+          x &rarr; 1/x; they are the two wells of the Duffing potential.
+        </p>
+      </div>
+
+      <div class="info-group">
+        <h3>Route A — Duffing</h3>
+        <p class="hint">
+          Integrates
+          &phi;&#776; = &minus;8&phi;<sup>3</sup> + 2&alpha;<sub>1D</sub><sup>2</sup>&phi;
+          from &phi;(0)=F<sub>+</sub>, &phi;&#775;(0)=0, then sets
+          x<sup>2</sup> = (F<sub>+</sub>&minus;&phi;)/(F<sub>+</sub>+&phi;).
+        </p>
+      </div>
+
+      <div class="info-group">
+        <h3>Route B — direct</h3>
+        <p class="hint">
+          Integrates the Euler&ndash;Lagrange equation of
+          &#8466; = &frac12;m(x)(x&#775;<sup>2</sup> &minus;
+          &alpha;<sub>1D</sub><sup>2</sup>x<sup>2</sup>),
+          m(x)=1/(1+x<sup>4</sup>), from x(0)=0,
+          x&#775;(0)=&radic;(2E<sub>1D</sub>).
+          The two routes share no intermediate quantity.
+        </p>
+      </div>
+    </aside>
+
+    <section class="panel plots">
+      <div class="plot-block">
+        <div class="plot-title">
+          <span>x<sup>2</sup>(t)</span>
+          <span class="legend">
+            <span class="key"><i style="background:#10b981"></i>route A</span>
+            <span class="key"><i style="background:#f59e0b"></i>route B</span>
+          </span>
+        </div>
+        <canvas id="canvas-x2" width="880" height="300"></canvas>
+      </div>
+
+      <div class="plot-block">
+        <div class="plot-title"><span>|x<sup>2</sup><sub>A</sub> &minus; x<sup>2</sup><sub>B</sub>|, log scale</span></div>
+        <canvas id="canvas-err" width="880" height="200"></canvas>
+      </div>
+
+      <div class="plot-row">
+        <div class="plot-block half">
+          <div class="plot-title">
+            <span>U(x) = &frac12;&alpha;<sub>1D</sub><sup>2</sup> m(x) x<sup>2</sup></span>
+            <span class="legend"><span class="key"><i style="background:#f59e0b"></i>route B</span></span>
+          </div>
+          <canvas id="canvas-ulem" width="430" height="260"></canvas>
+        </div>
+
+        <div class="plot-block half">
+          <div class="plot-title">
+            <span>V(&phi;) = 2&phi;<sup>4</sup> &minus; &alpha;<sub>1D</sub><sup>2</sup>&phi;<sup>2</sup></span>
+            <span class="legend"><span class="key"><i style="background:#10b981"></i>route A</span></span>
+          </div>
+          <canvas id="canvas-uduf" width="430" height="260"></canvas>
+        </div>
+
+        <div class="plot-block half">
+          <div class="plot-title">
+            <span>the lemniscate</span>
+            <span class="legend"><span class="key"><i style="background:#f59e0b"></i>swept arc</span></span>
+          </div>
+          <canvas id="canvas-lemni" width="430" height="260"></canvas>
+        </div>
+      </div>
+
+      <p class="note" id="verdict"></p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

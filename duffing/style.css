@@ -1,0 +1,202 @@
+:root {
+  --bg: #14171d;
+  --panel: #191d25;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #10b981;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2rem 1.5rem 3rem;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.55;
+}
+
+header {
+  max-width: 1320px;
+  margin: 0 auto 2rem;
+}
+
+header h1 {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+header p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.container {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+aside.panel {
+  flex: 0 0 320px;
+}
+
+.plots {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section-title {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.control-group { margin-bottom: 1.4rem; }
+
+.control-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.value-display {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.slider-container input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.info-group {
+  margin-top: 1.4rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.info-group h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.readout {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout td { padding: 0.18rem 0; }
+.readout td:first-child { color: var(--text-muted); }
+.readout td:last-child { text-align: right; }
+
+.plot-block { width: 100%; }
+
+.plot-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.legend { display: flex; gap: 1rem; }
+
+.key { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.key i {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  background: #10131a;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.note strong { color: var(--text-main); font-weight: 500; }
+
+@media (max-width: 1000px) {
+  .container { flex-direction: column; }
+  aside.panel { flex: none; width: 100%; }
+}
+
+.plot-row {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.plot-block.half { flex: 1; min-width: 0; }
+
+@media (max-width: 900px) {
+  .plot-row { flex-direction: column; }
+}
+
+.toggle { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; font-size: 0.88rem; }
+
+.toggle input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 38px; height: 21px; border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
+  position: relative; cursor: pointer; flex: none;
+  transition: background 0.18s ease;
+}
+
+.toggle input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%; background: #cbd5e1;
+  transition: transform 0.18s ease;
+}
+
+.toggle input[type="checkbox"]:checked { background: rgba(16,185,129,0.55); }
+.toggle input[type="checkbox"]:checked::after { transform: translateX(17px); background: #fff; }

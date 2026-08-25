@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P&#8324;(W) along a boost orbit</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <h1>P<sub>4</sub>(W) along a boost orbit</h1>
+    <p>
+      Pick a two-dimensional oscillator with the first three sliders; the fourth
+      transports it along its orbit, down to the representative with L = 0.
+    </p>
+  </header>
+
+  <main class="container">
+    <aside class="panel">
+      <h2 class="section-title">Initial system</h2>
+
+      <div class="control-group">
+        <label><span>L<sup>2</sup></span><span class="value-display" id="ll-val">1.00</span></label>
+        <input type="range" id="ll" min="0.02" max="6" step="0.01" value="1.00">
+      </div>
+
+      <div class="control-group">
+        <label><span>&delta;<sub>&alpha;</sub></span><span class="value-display" id="da-val">0.50</span></label>
+        <input type="range" id="da" min="0" max="6" step="0.01" value="0.50">
+        <p class="hint">&alpha; = &radic;(4L<sup>2</sup>) + &delta;<sub>&alpha;</sub></p>
+      </div>
+
+      <div class="control-group">
+        <label><span>&delta;<sub>E</sub></span><span class="value-display" id="de-val">0.30</span></label>
+        <input type="range" id="de" min="0" max="6" step="0.01" value="0.30">
+        <p class="hint">E = &alpha;L + &delta;<sub>E</sub></p>
+      </div>
+
+      <h2 class="section-title" style="margin-top:1.6rem">Boost</h2>
+
+      <div class="control-group">
+        <label><span>&eta;<sub>s</sub> / &eta;<sub>s</sub><sup>&#9733;</sup></span><span class="value-display" id="s-val">1.000</span></label>
+        <input type="range" id="s" min="0" max="1.4" step="0.001" value="1.000">
+        <p class="hint">
+          1 is the system chosen above, 0 is the one&#8209;dimensional
+          representative with L = 0.
+        </p>
+      </div>
+
+      <div class="control-group">
+        <label><span>W range</span><span class="value-display" id="wm-val">6</span></label>
+        <input type="range" id="wm" min="2" max="60" step="1" value="6">
+      </div>
+
+      <div class="info-group">
+        <h3>State</h3>
+        <table class="readout" id="state"></table>
+      </div>
+
+      <div class="info-group">
+        <h3>Invariants</h3>
+        <table class="readout" id="inv"></table>
+      </div>
+    </aside>
+
+    <section class="panel plots">
+      <div class="plot-title">
+        <span>P<sub>4</sub>(W), with the region P<sub>4</sub> &ge; 0 shaded</span>
+        <span class="legend">
+          <span class="key"><i style="background:#10b981"></i>current &eta;<sub>s</sub></span>
+          <span class="key"><i style="background:#64748b"></i>&eta;<sub>s</sub> = 0</span>
+        </span>
+      </div>
+      <canvas id="cv" width="900" height="440"></canvas>
+      <p class="note" id="verdict"></p>
+
+      <div class="pot-row">
+        <div class="pot-block">
+          <div class="plot-title"><span>U<sub>eff</sub>(r) at the current &eta;<sub>s</sub></span></div>
+          <canvas id="cv2d" width="440" height="280"></canvas>
+        </div>
+        <div class="pot-block">
+          <div class="plot-title"><span>U<sub>1D</sub>(x) at &eta;<sub>s</sub> = 0</span></div>
+          <canvas id="cv1d" width="440" height="280"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
