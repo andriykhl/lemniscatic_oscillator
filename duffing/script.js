@@ -11,8 +11,8 @@ let a2 = 1.0;   // alpha_1D^2
 let E1 = 0.15;  // E_1D
 
 const XMAX = 60;          // stop route B once |x| passes this
-const PERIODS = 3;        // length of the window, in periods of phi
-const STEPS = 6000;       // integration steps over the window
+const PERIODS = 3;        // nominal window length, in periods of phi
+const STEPS = 8000;       // integration steps over the window
 const PLAY_SECONDS = 7;   // real time taken to replay the window
 let U_RANGE = [-0.05, 0.85];   // fixed vertical range of the U(x) panel
 let V_RANGE = [-1.2, 1.4];     // fixed vertical range of the V(phi) panel
@@ -65,8 +65,18 @@ function rk4(f, y, dt) {
 // ------------------------------------------------------------ the two routes
 
 function integrate() {
-    const { Fp, T } = derived();
-    const tEnd = PERIODS * T;
+    const { Fp, T, M2 } = derived();
+
+    // Below the barrier phi is dnoidal and stays positive, so x^2 touches zero
+    // once per period of phi and x itself changes sign there: the period of x
+    // is 2T, not T. Over the barrier phi is cnoidal and the two periods agree.
+    // The window must be a whole number of periods of x, otherwise the replay
+    // wraps onto a state with the opposite velocity and the point appears to
+    // bounce off the node instead of passing to the other petal.
+    const Tx = M2 > 0 ? 2 * T : T;                          // period of x
+    const nWin = Math.max(1, Math.round(PERIODS * T / Tx)); // whole periods of x
+    const tEnd = nWin * Tx;
+    const phiPeriods = tEnd / T;                            // still an integer
     const dt = tEnd / STEPS;
 
     // Route A: phi'' = -8 phi^3 + 2 a2 phi,  phi(0) = F_+, phi'(0) = 0
@@ -95,6 +105,8 @@ function integrate() {
 
     const ts = [], xA = [], xB = [], phi = [], xraw = [], chartOf = [];
     let escaped = null;
+    const yB0 = [yB[0], yB[1]], chart0 = chart;
+    let yBend = null, chartEnd = null;
 
     for (let i = 0; i <= STEPS; i++) {
         const t = i * dt;
@@ -110,6 +122,7 @@ function integrate() {
         chartOf.push(chart);
 
         if (escaped === null && x2B > XMAX * XMAX) escaped = t;  // x^2 diverges here
+        if (i === STEPS) { yBend = [yB[0], yB[1]]; chartEnd = chart; }
 
         yA = rk4(fA, yA, dt);
         yB = rk4(fB, yB, dt);
@@ -119,7 +132,18 @@ function integrate() {
         }
     }
 
-    return { ts, xA, xB, phi, xraw, chartOf, tEnd, escaped, dt };
+    // How far route B is from returning to its own initial state at t = tEnd.
+    // A window cut on a whole period of x closes to integrator accuracy; a
+    // window cut on half a period closes in position and fails in velocity,
+    // which is exactly the bounce-off-the-node artefact. Comparable only when
+    // both ends are read in the same chart.
+    let closure = NaN;
+    if (yBend && chartEnd === chart0 && Number.isFinite(yBend[0])) {
+        closure = Math.hypot(yBend[0] - yB0[0], yBend[1] - yB0[1]);
+    }
+
+    return { ts, xA, xB, phi, xraw, chartOf, tEnd, escaped, dt,
+             phiPeriods, nWin, closure };
 }
 
 // ------------------------------------------------------------------ drawing
@@ -348,14 +372,20 @@ function drawLemniscate(data, i) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // an arc of the curve, swept by the parameter of the given chart
+    // An arc of the curve, swept by the parameter of the given chart. Sampled
+    // uniformly in u = atan(t), not in t: the map t -> point crowds the whole
+    // outside of a petal into large |t|, so a uniform grid in t spends its
+    // points near the node and leaves the petal itself as a handful of long
+    // chords. In u the points spread evenly, and u reaches the node from the
+    // other side as t -> +-infinity, which closes the loops.
     const arc = (from, to, colour, width, ch = 0) => {
-        const n = 400;
+        const n = 600;
+        const uFrom = Math.atan(from), uTo = Math.atan(to);
         ctx.strokeStyle = colour;
         ctx.lineWidth = width;
         ctx.beginPath();
         for (let j = 0; j <= n; j++) {
-            const t = from + (to - from) * j / n;
+            const t = Math.tan(uFrom + (uTo - uFrom) * j / n);
             const d = 1 + t ** 4;
             const px = ch === 0 ? cx + (t ** 3 / d) * sc : cx + (t / d) * sc;
             const py = ch === 0 ? cy - (t / d) * sc : cy - (t ** 3 / d) * sc;
@@ -365,7 +395,7 @@ function drawLemniscate(data, i) {
     };
 
     // whole curve, then the arc actually swept
-    arc(-9, 9, 'rgba(148,163,184,0.5)', 1.5);
+    arc(-1e4, 1e4, 'rgba(148,163,184,0.5)', 1.5);
 
     const { M2 } = derived();
     const bound = M2 > 0;
@@ -376,7 +406,7 @@ function drawLemniscate(data, i) {
         // the chart y = 1/x it is the same interval.
         arc(-xIn, xIn, '#f59e0b', 3.5, outer ? 1 : 0);
     } else {
-        arc(-60, 60, '#f59e0b', 3.5, 0);   // the whole figure eight
+        arc(-1e4, 1e4, '#f59e0b', 3.5, 0);   // the whole figure eight
     }
 
     // tips of the petals: x = +-1, the barrier r = 1
@@ -390,15 +420,43 @@ function drawLemniscate(data, i) {
     // y = 1/x the same point of the curve is (X,Y) = (y, y^3)/(1+y^4), the
     // reflection of the x-chart formula, so the passage through x = infinity
     // is continuous and the orbit moves onto the opposite petal.
-    const sNow = data.xraw[i];
-    if (Number.isFinite(sNow)) {
-        const d = 1 + sNow ** 4;
-        const px = data.chartOf[i] === 0 ? cx + (sNow ** 3 / d) * sc
-                                         : cx + (sNow / d) * sc;
-        const py = data.chartOf[i] === 0 ? cy - (sNow / d) * sc
-                                         : cy - (sNow ** 3 / d) * sc;
+    const pointAt = (idx) => {
+        const s = data.xraw[idx];
+        if (!Number.isFinite(s)) return null;
+        const d = 1 + s ** 4;
+        const px = data.chartOf[idx] === 0 ? cx + (s ** 3 / d) * sc : cx + (s / d) * sc;
+        const py = data.chartOf[idx] === 0 ? cy - (s / d) * sc : cy - (s ** 3 / d) * sc;
+        return Number.isFinite(px) && Number.isFinite(py) ? [px, py] : null;
+    };
+
+    // A short trail behind the particle. Both petals meet the node along the
+    // same vertical tangent, so a single dot crossing x = 0 at full speed is
+    // indistinguishable by eye from a dot bouncing off the node; the trail
+    // shows which of the two actually happened.
+    const span = data.xraw.length - 1;
+    const TRAIL = Math.max(8, Math.round(span * 0.04));
+    const STRIDE = Math.max(1, Math.round(TRAIL / 80));
+    const periodic = Number.isFinite(data.closure) && data.closure < 1e-6;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let k = TRAIL; k > 0; k -= STRIDE) {
+        let i0 = i - k, i1 = Math.min(i - k + STRIDE, i);
+        if (i0 < 0) {
+            if (!periodic) continue;            // window does not close: no wrap
+            i0 += span; i1 += span;
+        }
+        const p0 = pointAt(i0), p1 = pointAt(i1);
+        if (!p0 || !p1) continue;
+        ctx.strokeStyle = `rgba(16,185,129,${(0.5 * (1 - k / TRAIL)).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]);
+        ctx.stroke();
+    }
+
+    const here = pointAt(i);
+    if (here) {
         ctx.fillStyle = '#10b981';
-        ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(here[0], here[1], 5.5, 0, Math.PI * 2); ctx.fill();
     }
 
     ctx.font = '11px Inter';
@@ -449,19 +507,25 @@ function update() {
     document.getElementById('a2-val').textContent = a2.toFixed(2);
     document.getElementById('e-val').textContent = E1.toFixed(3);
 
+    const data = integrate();
+    current = data;
+    clock0 = null;
+
     const regime = d.M2 > 0 ? 'sub-barrier (dnoidal)'
         : d.M2 < 0 ? 'over-barrier (cnoidal)' : 'separatrix';
+    const closure = Number.isFinite(data.closure)
+        ? data.closure.toExponential(1) : '&mdash;';
     document.getElementById('readout').innerHTML = `
         <tr><td>F<sub>+</sub><sup>2</sup></td><td>${d.Fp2.toFixed(4)}</td></tr>
         <tr><td>F<sub>&minus;</sub><sup>2</sup></td><td>${d.Fm2.toFixed(4)}</td></tr>
         <tr><td>&#119924;<sup>2</sup></td><td>${d.M2.toFixed(4)}</td></tr>
         <tr><td>k<sup>2</sup></td><td>${d.k2.toFixed(4)}</td></tr>
-        <tr><td>period</td><td>${d.T.toFixed(4)}</td></tr>
+        <tr><td>period of &phi;</td><td>${d.T.toFixed(4)}</td></tr>
+        <tr><td>period of x</td><td>${(d.M2 > 0 ? 2 * d.T : d.T).toFixed(4)}</td></tr>
+        <tr><td>window</td><td>${data.nWin} &times; period of x</td></tr>
+        <tr><td>loop closure</td><td>${closure}</td></tr>
         <tr><td>regime</td><td>${regime}</td></tr>`;
 
-    const data = integrate();
-    current = data;
-    clock0 = null;
     drawX2(data);
     drawErr(data);
 
@@ -485,7 +549,9 @@ function update() {
             onto the opposite petal. Where x<sup>2</sup> stays below 10 the two
             routes agree to <strong>${worst.toExponential(2)}</strong>.`;
     } else {
-        v.innerHTML = `Largest discrepancy over ${PERIODS} periods:
+        v.innerHTML = `Largest discrepancy over ${data.phiPeriods} periods of
+            &phi;, that is ${data.nWin} full ${data.nWin === 1 ? 'period' : 'periods'}
+            of x:
             <strong>${worst.toExponential(2)}</strong>.`;
     }
 }
