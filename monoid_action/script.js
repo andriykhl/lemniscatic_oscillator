@@ -448,6 +448,105 @@ function drawProjectiveFrame(ctx) {
     ctx.fillRect(0, cy, width, height - cy); // tanh(eta') < 0
 }
 
+// --- Dragging the centre of oscillation ---------------------------------
+// The amber ring on either hyperbola marks the centre eta_r, shifted by the
+// boost in the boosted canvas. Dragging it is the same input as the eta_r
+// slider. The pointer is carried onto the hyperbola along the ray through the
+// origin, the projection the lemniscate overlay already uses, so the ring
+// follows the pointer even when it drifts off the curve.
+
+const DRAG_RADIUS = 14;
+
+function canvasPoint(canvas, ev) {
+    const rect = canvas.getBoundingClientRect();
+    return [
+        (ev.clientX - rect.left) * canvas.width / rect.width,
+        (ev.clientY - rect.top) * canvas.height / rect.height
+    ];
+}
+
+function frameShift(boosted) { return boosted ? -etaS : 0; }
+
+// Screen positions of the grabbable rings on one canvas: the centre on the
+// hyperbola, and its image on the lemniscate when that overlay is on.
+function centreHandles(canvas, boosted) {
+    const P = makePlotter(null, canvas.width, canvas.height);
+    const cEta = etaR - frameShift(boosted);
+    const out = [P.pt(Math.sinh(cEta), Math.cosh(cEta))];
+    if (lemniscate && cEta + etaAmp > 0) {
+        const [X, Y, ok] = lemniPoint(cEta);
+        if (ok) out.push(P.pt(X, Y));
+    }
+    return out;
+}
+
+// Screen point -> rapidity, by the ray through the origin. Undoes project(),
+// so it is correct in the spacelike sector too. Returns null for a point that
+// no ray of the sector reaches.
+function rapidityAt(canvas, x, y) {
+    const [cx, cy] = viewOrigin(canvas.width, canvas.height);
+    const scale = viewScale();
+    const h = (x - cx) / scale, v = (cy - y) / scale;
+    const [s, u] = spacelike ? [v, h] : [h, v];
+    if (u <= 0) return null;                  // wrong half of the cone
+    const w = s / u;
+    if (Math.abs(w) >= 1) return null;        // outside the light cone
+    return Math.atanh(w);
+}
+
+// Single entry point for both the slider and the drag, so they cannot drift
+// apart: clamped and quantized to the slider's own range and step.
+function setEtaR(value) {
+    const lo = etaRSlider ? parseFloat(etaRSlider.min) : -1.5;
+    const hi = etaRSlider ? parseFloat(etaRSlider.max) : 1.5;
+    const step = etaRSlider ? parseFloat(etaRSlider.step) : 0.01;
+    const v = parseFloat(
+        (Math.round(Math.min(hi, Math.max(lo, value)) / step) * step).toFixed(6));
+    if (v === etaR) return;                   // no reset on sub-step jitter
+    etaR = v;
+    if (etaRSlider) etaRSlider.value = String(v);
+    resetMotion();
+    updateUI();
+}
+
+function attachCentreDrag(canvas, boosted) {
+    if (!canvas) return;
+    canvas.style.touchAction = 'none';        // let a touch drag, not scroll
+    let dragging = false;
+
+    const onHandle = (x, y) => centreHandles(canvas, boosted)
+        .some(([hx, hy]) => Math.hypot(x - hx, y - hy) <= DRAG_RADIUS);
+
+    canvas.addEventListener('pointerdown', (ev) => {
+        const [x, y] = canvasPoint(canvas, ev);
+        if (!onHandle(x, y)) return;
+        dragging = true;
+        canvas.setPointerCapture(ev.pointerId);
+        canvas.style.cursor = 'grabbing';
+        ev.preventDefault();
+    });
+
+    canvas.addEventListener('pointermove', (ev) => {
+        const [x, y] = canvasPoint(canvas, ev);
+        if (!dragging) {
+            canvas.style.cursor = onHandle(x, y) ? 'grab' : 'default';
+            return;
+        }
+        const eta = rapidityAt(canvas, x, y);
+        if (eta !== null) setEtaR(eta + frameShift(boosted));
+        ev.preventDefault();
+    });
+
+    const release = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+        canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+}
+
 // --- Rapidity vs time ---------------------------------------------------
 
 function dashedLine(ctx, x0, y, x1, color) {
@@ -594,9 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (etaRSlider) {
         etaRSlider.addEventListener('input', (e) => {
-            etaR = parseFloat(e.target.value);
-            resetMotion();
-            updateUI();
+            setEtaR(parseFloat(e.target.value));
         });
     }
 
@@ -632,6 +729,9 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
         });
     }
+
+    attachCentreDrag(canvasOriginal, false);
+    attachCentreDrag(canvasBoosted, true);
 
     resetMotion();
     updateUI();
