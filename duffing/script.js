@@ -252,7 +252,7 @@ function drawErr(data) {
 
 // ------------------------------------------------------------ potential wells
 
-function wellPanel(id, xs, ys, level, dot, xLabel, colour, fixedY) {
+function wellPanel(id, xs, ys, level, dot, xLabel, colour, fixedY, cover) {
     const cv = document.getElementById(id);
     const ctx = cv.getContext('2d');
     const W = cv.width, H = cv.height;
@@ -326,11 +326,63 @@ function wellPanel(id, xs, ys, level, dot, xLabel, colour, fixedY) {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // The double cover of the swept interval. phi is even in x, so an interior
+    // value of phi has the two preimages +-x, and the two sheets meet exactly
+    // where phi = +-F+, that is at x = 0 and at x = infinity. In the angle
+    // psi = 2 arctan x the cover is the circle phi = F+ cos psi, drawn here as
+    // an ellipse of height 2*OFF pixels: a closed loop over the barrier, an
+    // open hairpin below it, where one end is a genuine turning point and the
+    // sheets stay apart. Which sheet the dot rides on is the sign of x, the one
+    // bit the Duffing equation does not carry.
+    const OFF = 7;
+    if (cover) {
+        const yMid = toY(level);
+        const pt = (psi) => [toX(cover.Fp * Math.cos(psi)), yMid - OFF * Math.sin(psi)];
+        ctx.strokeStyle = 'rgba(148,163,184,0.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const n = 240;
+        for (let j = 0; j <= n; j++) {
+            const psi = cover.psi0 + cover.half * (2 * j / n - 1);
+            const [px, py] = pt(psi);
+            j ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+        ctx.stroke();
+
+        // open ends: a turning point of the motion, where the sheets do not meet
+        if (cover.half < Math.PI - 1e-9) {
+            ctx.fillStyle = 'rgba(148,163,184,0.9)';
+            for (const s of [-1, 1]) {
+                const [px, py] = pt(cover.psi0 + s * cover.half);
+                ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // sheet labels, only where the two sheets are far enough apart to read
+        const wide = cover.psi0 + Math.max(-cover.half,
+                     Math.min(cover.half, Math.PI / 2));
+        if (Math.abs(Math.sin(wide)) > 0.55) {
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#64748b';
+            const [lx] = pt(wide);
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText('x > 0', lx, yMid - OFF - 5);
+            ctx.textBaseline = 'top';
+            ctx.fillText('x < 0', lx, yMid + OFF + 4);
+        }
+    }
+
     // the particle, riding on the level
     if (Number.isFinite(dot) && dot >= xLo && dot <= xHi) {
+        let dy = 0;
+        if (cover && cover.sign) {
+            const q = Math.min(1, Math.abs(dot) / cover.Fp);   // |sin psi|
+            dy = -OFF * cover.sign * Math.sqrt(1 - q * q);
+        }
         ctx.fillStyle = colour;
         ctx.beginPath();
-        ctx.arc(toX(dot), toY(level), 5.5, 0, Math.PI * 2);
+        ctx.arc(toX(dot), toY(level) + dy, 5.5, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -495,8 +547,20 @@ function drawWells(data, i) {
         ps.push(p);
         vs.push(2 * p ** 4 - a2 * p * p);
     }
+    // Cover of the swept phi-interval, in the angle psi = 2 arctan x. Below the
+    // barrier the sweep is the arc |psi - psi0| <= 2 arctan x_in about psi0 = 0
+    // for the inner branch and about psi0 = pi for the outer one, since the two
+    // branches are exchanged by x -> 1/x, that is psi -> pi - psi. Over the
+    // barrier x runs over the whole projective line and the arc closes.
+    const xIn = M2 > 0 ? Math.sqrt((a2 / 4 - Math.sqrt(M2)) / E1) : null;
+    const cover = {
+        Fp,
+        psi0: outer ? Math.PI : 0,
+        half: M2 > 0 ? 2 * Math.atan(xIn) : Math.PI,
+        sign: Math.sign(trueX)
+    };
     wellPanel('canvas-uduf', ps, vs, -2 * M2, data.phi[i], '\u03c6', '#10b981',
-              V_RANGE);
+              V_RANGE, cover);
     drawLemniscate(data, i);
 }
 
