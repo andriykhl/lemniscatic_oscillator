@@ -77,8 +77,10 @@ function viewOrigin(width, height) {
     return [width / 2, height / 2];
 }
 
-function viewScale() {
-    return 50;
+// Tied to the canvas size, so raising the drawing resolution enlarges the
+// picture instead of padding it with empty margin.
+function viewScale(width, height) {
+    return Math.min(width, height) / 8;
 }
 
 // Update UI and Math
@@ -116,7 +118,7 @@ function updateUI() {
 
 function makePlotter(ctx, width, height) {
     const [cx, cy] = viewOrigin(width, height);
-    const scale = viewScale();
+    const scale = viewScale(width, height);
     return {
         cx, cy, scale,
         // screen position of the point with components (s, u)
@@ -358,32 +360,52 @@ function drawProjectiveFrame(ctx) {
 
     ctx.clearRect(0, 0, width, height);
 
-    const scaleX = 200;
-    const scaleY = 50;
-    const V = Math.tanh(etaS);
+    // The projective coordinate is the ratio of the components as drawn, and
+    // project() swaps them in the spacelike sector. So w = tanh(eta) there
+    // becomes w = coth(eta): the sector is exactly the outside of the unit
+    // interval, r^2 > 1, which is what the lemniscate overlay shows as the
+    // outer branch. The boost acts the same way on both, since
+    // coth(eta + etaS) = (w + V)/(1 + wV) with w = coth(eta) as well.
+    const wOf = (eta) => (spacelike ? 1 / Math.tanh(eta) : Math.tanh(eta));
 
-    // Oscillation band and centre, marked on both axes.
-    // On the x axis the band is [tanh(etaR - amp), tanh(etaR + amp)];
-    // on the y axis it is the same interval shifted by the boost.
-    const amber = "#f59e0b";
-    const xLo = Math.tanh(etaR - etaAmp) * scaleX + cx;
-    const xHi = Math.tanh(etaR + etaAmp) * scaleX + cx;
-    const yLo = cy - Math.tanh(etaR - etaAmp + etaS) * scaleY;
-    const yHi = cy - Math.tanh(etaR + etaAmp + etaS) * scaleY;
-    const xC = cx + Math.tanh(etaR) * scaleX;
-    const yC = cy - Math.tanh(etaR + etaS) * scaleY;
+    // Both axes carry w itself, at one and the same scale, so the Mobius map
+    // is drawn undistorted. The spacelike sector then runs off the frame
+    // whenever coth(eta) is large, which is the honest thing to show: a
+    // compressed axis would fit it in at the cost of bending the curve.
+    const wMax = 5 / 3;                       // half-range of both axes
+    const scale = Math.min(cx, cy) / wMax;
+    const V = Math.tanh(etaS);
+    const toX = (w) => cx + w * scale;
+    const toY = (w) => cy - w * scale;
+    const clampX = (px) => Math.max(cx, Math.min(width, px));
+    const clampY = (py) => Math.max(0, Math.min(cy, py));
+
+    // The oscillation band. In the spacelike sector an interval of eta
+    // straddling zero maps to two pieces, one running out to each end of the
+    // line; they are clipped by the frame like everything else.
+    const band = (shift) => {
+        const lo = etaR - etaAmp + shift, hi = etaR + etaAmp + shift;
+        if (!spacelike) return [[Math.tanh(lo), Math.tanh(hi)]];
+        if (lo < 0 && hi > 0) return [[-Infinity, 1 / Math.tanh(lo)],
+                                      [1 / Math.tanh(hi), Infinity]];
+        const a = 1 / Math.tanh(lo), b = 1 / Math.tanh(hi);
+        return [[Math.min(a, b), Math.max(a, b)]];
+    };
 
     // The bands are drawn only in the first quadrant, where both coordinates
     // are non-negative and the state has an image on the lemniscate.
-    const qx = Math.max(Math.min(xLo, xHi), cx);
-    const qw = Math.max(0, Math.max(xLo, xHi) - qx);
-    const qy = Math.min(Math.min(yLo, yHi), cy);
-    const qh = Math.max(0, Math.min(Math.max(yLo, yHi), cy) - qy);
-
     ctx.fillStyle = "rgba(245, 158, 11, 0.14)";
-    if (qw > 0) ctx.fillRect(qx, 0, qw, cy);
-    if (qh > 0) ctx.fillRect(cx, qy, width - cx, qh);
+    for (const [a, b] of band(0)) {
+        const x0 = clampX(toX(a)), x1 = clampX(toX(b));
+        if (x1 > x0) ctx.fillRect(x0, 0, x1 - x0, cy);
+    }
+    for (const [a, b] of band(etaS)) {
+        const y0 = clampY(toY(b)), y1 = clampY(toY(a));
+        if (y1 > y0) ctx.fillRect(cx, y0, width - cx, y1 - y0);
+    }
 
+    const xC = toX(wOf(etaR));
+    const yC = toY(wOf(etaR + etaS));
     ctx.strokeStyle = "rgba(245, 158, 11, 0.55)";
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
@@ -400,18 +422,44 @@ function drawProjectiveFrame(ctx) {
     ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
     ctx.stroke();
 
+    // the unit square: the light cone, and the wall between the two sectors
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.30)";
+    ctx.setLineDash([2, 4]);
+    ctx.strokeRect(toX(-1), toY(1), 2 * scale, 2 * scale);
+    ctx.setLineDash([]);
+
+    // the diagonal: the identity at zero boost
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(toX(-wMax), toY(-wMax)); ctx.lineTo(toX(wMax), toY(wMax));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "14px Inter";
-    ctx.fillText("tanh(η)", width - 60, cy - 10);
-    ctx.fillText("tanh(η')", cx + 10, 20);
+    ctx.font = "17px Inter";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("1", toX(1), cy + 6);
+    ctx.fillText("\u22121", toX(-1), cy + 6);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("1", cx - 6, toY(1));
+    ctx.fillText("\u22121", cx - 6, toY(-1));
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "18px Inter";
+    const nm = spacelike ? "coth" : "tanh";
+    ctx.fillText(nm + "(\u03b7)", width - 96, cy - 10);
+    ctx.fillText(nm + "(\u03b7')", cx + 10, 24);
 
     ctx.strokeStyle = "rgba(239, 68, 68, 0.4)";
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     if (Math.abs(V) > 0.01) {
-        const asymX = cx - (1 / V) * scaleX;
+        const asymX = toX(-1 / V);
         ctx.moveTo(asymX, 0); ctx.lineTo(asymX, height);
-        const asymY = cy - (1 / V) * scaleY;
+        const asymY = toY(1 / V);
         ctx.moveTo(0, asymY); ctx.lineTo(width, asymY);
     }
     ctx.stroke();
@@ -420,32 +468,41 @@ function drawProjectiveFrame(ctx) {
     ctx.strokeStyle = "#a855f7";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    let first = true;
+    let first = true, side = 0;
     for (let i = 0; i <= width; i++) {
-        const v = (i - cx) / scaleX;
-        if (Math.abs(1 + v * V) < 0.01) { first = true; continue; }
-        const vp = (v + V) / (1 + v * V);
-        const py = cy - vp * scaleY;
+        const w = (i - cx) / scale;
+        const den = 1 + w * V;
+        if (Math.sign(den) !== side) { side = Math.sign(den); first = true; }
+        if (Math.abs(den) < 1e-6) { first = true; continue; }
+        const py = toY((w + V) / den);
         if (first) { ctx.moveTo(i, py); first = false; }
         else ctx.lineTo(i, py);
     }
     ctx.stroke();
 
-    const v = Math.tanh(etaState);
-    const vp = Math.tanh(etaState + etaS);
+    // w = +-1 stay put under every boost: the two fixed points of the map
+    ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
+    for (const f of [1, -1]) {
+        ctx.beginPath();
+        ctx.arc(toX(f), toY(f), 3.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const v = wOf(etaState);
+    const vp = wOf(etaState + etaS);
 
     // Either coordinate going negative means the state has no image on the
-    // lemniscate in that frame, since tanh(eta) = x^2 >= 0 there.
+    // lemniscate in that frame, since w = x^2 >= 0 there.
     const mappable = v >= 0 && vp >= 0;
     ctx.fillStyle = mappable ? "#10b981" : "#ef4444";
     ctx.beginPath();
-    ctx.arc(cx + v * scaleX, cy - vp * scaleY, 6, 0, Math.PI * 2);
+    ctx.arc(toX(v), toY(vp), 6, 0, Math.PI * 2);
     ctx.fill();
 
     // Shade the quadrants that cannot be mapped
     ctx.fillStyle = "rgba(239, 68, 68, 0.07)";
-    ctx.fillRect(0, 0, cx, height);          // tanh(eta) < 0
-    ctx.fillRect(0, cy, width, height - cy); // tanh(eta') < 0
+    ctx.fillRect(0, 0, cx, height);
+    ctx.fillRect(0, cy, width, height - cy);
 }
 
 // --- Dragging the centre of oscillation ---------------------------------
@@ -485,7 +542,7 @@ function centreHandles(canvas, boosted) {
 // no ray of the sector reaches.
 function rapidityAt(canvas, x, y) {
     const [cx, cy] = viewOrigin(canvas.width, canvas.height);
-    const scale = viewScale();
+    const scale = viewScale(canvas.width, canvas.height);
     const h = (x - cx) / scale, v = (cy - y) / scale;
     const [s, u] = spacelike ? [v, h] : [h, v];
     if (u <= 0) return null;                  // wrong half of the cone

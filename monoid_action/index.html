@@ -75,7 +75,13 @@
           <input type="checkbox" id="spacelike-toggle">
           <span>Spacelike sector</span>
         </label>
-        <p class="hint">Reflects the picture in the null line W<sub>1</sub> = W<sub>2</sub>.</p>
+        <p class="hint">
+          Reflects the picture in the null line W<sub>1</sub> = W<sub>2</sub>.
+          The components swap, so the projective coordinate becomes
+          w = coth&thinsp;&eta; and |w| &gt; 1: this sector is the outside of
+          the unit interval, the branch r&sup2; &gt; 1. The projective axes stay
+          linear, so for small &eta; the point leaves that frame.
+        </p>
       </div>
 
       <div class="control-group">
@@ -107,23 +113,23 @@
       <div class="canvas-row">
         <div class="canvas-container">
           <div class="canvas-title">Rest Frame (e₁, e₂)</div>
-          <canvas id="canvas-original" width="400" height="400"></canvas>
+          <canvas id="canvas-original" width="560" height="560"></canvas>
         </div>
 
         <div class="canvas-container">
           <div class="canvas-title">Boosted Frame (e'₁, e'₂)</div>
-          <canvas id="canvas-boosted" width="400" height="400"></canvas>
+          <canvas id="canvas-boosted" width="560" height="560"></canvas>
+        </div>
+
+        <div class="canvas-container">
+          <div class="canvas-title">Projective Coordinate (w&prime; vs w, w = X/Y)</div>
+          <canvas id="canvas-projective" width="560" height="560"></canvas>
         </div>
       </div>
 
       <div class="canvas-container full-width">
-        <div class="canvas-title">Projective Coordinate (tanh &eta;' vs tanh &eta;)</div>
-        <canvas id="canvas-projective" width="800" height="200"></canvas>
-      </div>
-
-      <div class="canvas-container full-width">
         <div class="canvas-title">Rapidity vs Time — both frames</div>
-        <canvas id="canvas-time" width="800" height="260"></canvas>
+        <canvas id="canvas-time" width="1120" height="320"></canvas>
         <p class="canvas-note">
           The boost shifts the curve by &eta;<sub>s</sub> without changing its shape:
           the amplitude and the period are the same in both frames, and the

@@ -54,9 +54,9 @@ header p {
 .container {
   display: flex;
   flex: 1;
-  gap: 2rem;
-  padding: 0 2rem 2rem 2rem;
-  max-width: 1400px;
+  gap: 1.25rem;
+  padding: 0 1rem 2rem 1rem;
+  max-width: 1760px;
   margin: 0 auto;
   width: 100%;
 }
@@ -66,15 +66,15 @@ header p {
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1.15rem;
   box-shadow: var(--shadow-md);
 }
 
 aside {
-  flex: 0 0 300px;
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  flex: 0 0 280px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -186,9 +186,27 @@ input[type=range]::-webkit-slider-runnable-track {
 
 .canvas-row {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   width: 100%;
   justify-content: center;
+}
+
+/* Three square plots share the row, so they scale with it. The drawing
+   resolution stays at the canvas width attribute; only the display size
+   shrinks, and pointer input is already divided by that ratio. */
+.canvas-row .canvas-container {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.canvas-row canvas {
+  width: 100%;
+  height: auto;
+}
+
+.canvas-row .canvas-title {
+  max-width: 100%;
+  text-align: center;
 }
 
 .canvas-container {
@@ -200,6 +218,11 @@ input[type=range]::-webkit-slider-runnable-track {
 
 .full-width {
   width: 100%;
+}
+
+.full-width canvas {
+  width: 100%;
+  height: auto;
 }
 
 .canvas-title {
