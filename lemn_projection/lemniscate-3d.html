@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The lemniscate as a central projection of (t³, t, 1+t⁴)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #14171d;
+  --panel: #191d25;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #f472b6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 2rem 1.5rem 3rem;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.55;
+}
+header { max-width: 1320px; margin: 0 auto 1.6rem; }
+header h1 { margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+header p { margin: 0; max-width: 66ch; color: var(--text-muted); font-size: 0.92rem; }
+.container { max-width: 1320px; margin: 0 auto; display: flex; gap: 1.5rem; align-items: flex-start; }
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+aside.panel { flex: 0 0 300px; }
+.stage { flex: 1; min-width: 0; padding: 0.9rem; }
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: #10131a;
+  border: 1px solid rgba(255,255,255,0.05);
+  cursor: grab;
+  touch-action: none;
+}
+canvas:active { cursor: grabbing; }
+canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.section-title {
+  margin: 0 0 1rem; font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+}
+.control-group { margin-bottom: 1.2rem; }
+.control-group label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.5rem; font-size: 0.9rem;
+}
+.value { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.buttons { display: flex; gap: 0.5rem; }
+button {
+  flex: 1; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.85rem;
+  color: var(--text-main); background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;
+}
+button:hover { background: rgba(255,255,255,0.11); }
+.group { margin-top: 1.3rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.07); }
+.group h3 { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 500; }
+.hint { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-muted); }
+.readout { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.readout td { padding: 0.18rem 0; }
+.readout td:first-child { color: var(--text-muted); }
+.readout td:last-child { text-align: right; }
+.key { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; margin-bottom: 0.35rem; }
+.key i { width: 18px; height: 3px; border-radius: 2px; flex: none; }
+.toggle {
+  display: flex; align-items: center; gap: 0.6rem; cursor: pointer;
+  user-select: none; font-size: 0.82rem; margin-bottom: 0.55rem;
+  color: var(--text-muted);
+}
+.toggle input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 34px; height: 19px; border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
+  position: relative; cursor: pointer; flex: none;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.toggle input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 13px; height: 13px; border-radius: 50%; background: #cbd5e1;
+  transition: transform 0.18s ease;
+}
+.toggle input[type="checkbox"]:checked {
+  background: var(--sw, var(--accent));
+  border-color: var(--sw, var(--accent));
+}
+.toggle input[type="checkbox"]:checked::after { transform: translateX(15px); background: #fff; }
+.toggle input[type="checkbox"]:focus-visible { outline: 2px solid var(--sw, var(--accent)); outline-offset: 2px; }
+.toggle input[type="checkbox"]:checked ~ span { color: var(--text-main); }
+.swatch {
+  width: 10px; height: 10px; border-radius: 3px; flex: none;
+  background: var(--sw); opacity: 0.3; transition: opacity 0.18s ease;
+}
+.toggle input[type="checkbox"]:checked ~ .swatch { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle input[type="checkbox"], .toggle input[type="checkbox"]::after { transition: none; }
+}
+
+@media (max-width: 1000px) {
+  .container { flex-direction: column; }
+  aside.panel { flex: none; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>The lemniscate as a central projection</h1>
+  <p>
+    The space curve &Gamma;(t) = (t³, t, 1+t⁴), its shadows on the planes X = 0 and Z = 0,
+    and the ray from the origin that carries it onto the plane Z = 1, where it traces the
+    lemniscate. Drag the picture to turn it.
+  </p>
+</header>
+
+<main class="container">
+  <aside class="panel">
+    <h2 class="section-title">Parameter</h2>
+
+    <div class="control-group">
+      <label><span>t</span><span class="value" id="t-val">0.85</span></label>
+      <input type="range" id="t-slider" min="-1.25" max="1.25" step="0.005" value="0.85">
+    </div>
+
+    <div class="buttons">
+      <button id="play">Sweep t</button>
+      <button id="reset">Reset view</button>
+    </div>
+
+    <div class="group">
+      <h3>Point</h3>
+      <table class="readout" id="readout"></table>
+    </div>
+
+    <div class="group">
+      <h3>Legend</h3>
+      <div class="key"><i style="background:#e2e8f0"></i>&Gamma;(t) = (t³, t, 1+t⁴)</div>
+      <div class="key"><i style="background:#38bdf8"></i>on X = 0: Z = 1 + Y⁴</div>
+      <div class="key"><i style="background:#22c55e"></i>on Z = 0: X = Y³</div>
+      <div class="key"><i style="background:#f472b6"></i>on Z = 1: the lemniscate</div>
+    </div>
+
+    <div class="group">
+      <h3>Surfaces through &Gamma;</h3>
+      <label class="toggle" style="--sw:#a78bfa">
+        <input type="checkbox" data-surf="umbrella">
+        <span class="swatch"></span>
+        <span>Whitney umbrella, X² = Y²(Z&minus;1)</span>
+      </label>
+      <label class="toggle" style="--sw:#f472b6">
+        <input type="checkbox" data-surf="cone">
+        <span class="swatch"></span>
+        <span>Projective cone, (X²+Y²)² = XYZ²</span>
+      </label>
+      <label class="toggle" style="--sw:#22c55e">
+        <input type="checkbox" data-surf="cubic">
+        <span class="swatch"></span>
+        <span>X = Y³</span>
+      </label>
+      <label class="toggle" style="--sw:#38bdf8">
+        <input type="checkbox" data-surf="quartic">
+        <span class="swatch"></span>
+        <span>Z = Y⁴ + 1</span>
+      </label>
+      <label class="toggle" style="--sw:#fb923c">
+        <input type="checkbox" data-surf="saddle">
+        <span class="swatch"></span>
+        <span>Z = XY + 1</span>
+      </label>
+      <p class="hint">
+        All five carry the curve, and X = Y³ meets Z = Y⁴ + 1 in exactly &Gamma;.
+        The umbrella pinches at O, the node of the lemniscate, and its double line
+        runs up the Z axis from there.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>Why the ray lands on it</h3>
+      <p class="hint">
+        Scaling a point by 1/Z is what the plane Z = 1 sees, and
+        &Gamma;(t)/(1+t⁴) = (t³/(1+t⁴), t/(1+t⁴), 1). Those are the coordinates of the
+        lemniscate, so the whole curve is one projective object read in an affine chart.
+        As t &rarr; &plusmn;&infin; the ray flattens onto the plane Z = 0 and the image
+        returns to the node, which is why the drawn sweep covers only part of the curve.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>Turning it</h3>
+      <p class="hint">
+        Drag to rotate, scroll to zoom. With the picture focused, the arrow keys rotate in
+        steps.
+      </p>
+    </div>
+  </aside>
+
+  <section class="panel stage">
+    <canvas id="scene" width="1040" height="760" tabindex="0"
+            aria-label="Rotatable three-dimensional construction of the lemniscate"></canvas>
+  </section>
+</main>
+
+<script>
+const cv = document.getElementById('scene');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+const T_MAX = 1.25;                  // |t| shown on the space curve
+const CENTRE = [0.15, 0, 1.55];      // world point held at the centre of the frame
+
+let az = 0.92, el = 0.30, scale = 140;
+let tPar = 0.85, playing = false, playT0 = 0;
+
+const COL = {
+  gamma: '#e2e8f0',
+  blue: '#38bdf8',
+  green: '#22c55e',
+  lemni: '#f472b6',
+  plane: 'rgba(245,158,11,0.10)',
+  planeEdge: 'rgba(245,158,11,0.38)',
+  faint: 'rgba(255,255,255,0.13)',
+  axis: 'rgba(226,232,240,0.55)',
+  label: '#94a3b8',
+  text: '#e2e8f0'
+};
+
+// ---------------------------------------------------------------- projection
+
+let B = null;
+function camera() {
+  const ca = Math.cos(az), sa = Math.sin(az), ce = Math.cos(el), se = Math.sin(el);
+  B = { f: [ce * ca, ce * sa, se], r: [-sa, ca, 0], u: [-se * ca, -se * sa, ce] };
+}
+
+function proj(p) {
+  const dx = p[0] - CENTRE[0], dy = p[1] - CENTRE[1], dz = p[2] - CENTRE[2];
+  return [
+    W / 2 + (dx * B.r[0] + dy * B.r[1] + dz * B.r[2]) * scale,
+    H / 2 - (dx * B.u[0] + dy * B.u[1] + dz * B.u[2]) * scale
+  ];
+}
+
+// ------------------------------------------------------------------ drawing
+
+function stroke(pts, colour, width, dash) {
+  if (pts.length < 2) return;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = width;
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const [x, y] = proj(p);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.stroke();
+  if (dash) ctx.setLineDash([]);
+}
+
+function seg(a, b, colour, width, dash) { stroke([a, b], colour, width, dash); }
+
+function quad(corners, fill, edge) {
+  ctx.beginPath();
+  corners.forEach((p, i) => {
+    const [x, y] = proj(p);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
+}
+
+function dot(p, colour, r) {
+  const [x, y] = proj(p);
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function label(p, text, colour, dx, dy, align) {
+  const [x, y] = proj(p);
+  ctx.fillStyle = colour;
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + dx, y + dy);
+}
+
+function arrowTo(from, to, colour) {
+  seg(from, to, colour, 1.4);
+  const [x0, y0] = proj(from), [x1, y1] = proj(to);
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - 9 * Math.cos(a - 0.3), y1 - 9 * Math.sin(a - 0.3));
+  ctx.lineTo(x1 - 9 * Math.cos(a + 0.3), y1 - 9 * Math.sin(a + 0.3));
+  ctx.fill();
+}
+
+// ------------------------------------------------------------------- curves
+
+const gammaPts = (() => {
+  const pts = [];
+  for (let i = 0; i <= 400; i++) {
+    const t = -T_MAX + 2 * T_MAX * i / 400;
+    pts.push([t ** 3, t, 1 + t ** 4]);
+  }
+  return pts;
+})();
+
+const shadowX0 = gammaPts.map(([, y, z]) => [0, y, z]);   // onto the plane X = 0
+const shadowZ0 = gammaPts.map(([x, y]) => [x, y, 0]);      // onto the plane Z = 0
+
+// The lemniscate, sampled evenly in u = arctan(t) so that the parameter does not
+// pile up near the node; u reaches the node from the far side as t -> infinity.
+function lemniArc(uFrom, uTo, n) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = Math.tan(uFrom + (uTo - uFrom) * i / n);
+    const d = 1 + t ** 4;
+    pts.push([t ** 3 / d, t / d, 1]);
+  }
+  return pts;
+}
+const uMax = Math.atan(T_MAX);
+const lemniFull = [lemniArc(-1.5705, -uMax, 200), lemniArc(uMax, 1.5705, 200)];
+const lemniSwept = lemniArc(-uMax, uMax, 260);
+
+// ------------------------------------------------------------------ surfaces
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1],
+                         a[2] * b[0] - a[0] * b[2],
+                         a[0] * b[1] - a[1] * b[0]];
+function unit(v) {
+  const L = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / L, v[1] / L, v[2] / L];
+}
+
+// A quad mesh over the unit square, with the facet normal and centroid kept in
+// world coordinates so that only the depth has to be recomputed when the view
+// turns. keep() drops the facets that leave the drawing box.
+function mesh(nu, nv, f, keep) {
+  const grid = [];
+  for (let i = 0; i <= nu; i++) {
+    const row = [];
+    for (let j = 0; j <= nv; j++) row.push(f(i / nu, j / nv));
+    grid.push(row);
+  }
+  const out = [];
+  for (let i = 0; i < nu; i++) {
+    for (let j = 0; j < nv; j++) {
+      const q = [grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]];
+      if (keep && !q.every(keep)) continue;
+      out.push({
+        q,
+        n: unit(cross(sub(q[2], q[0]), sub(q[3], q[1]))),
+        c: [(q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2, (q[0][2] + q[2][2]) / 2]
+      });
+    }
+  }
+  return out;
+}
+
+// Every one of these carries Gamma. The umbrella (uv, u, 1+v²) takes it at
+// u = t, v = t²; the cone is the union of the rays through it; the last three
+// are the two cylinders over the shadows and the saddle Z = XY + 1, which holds
+// the curve because t³·t = t⁴.
+const SURF = {
+  umbrella: {
+    colour: '167,139,250', on: false, mesh: null,
+    build: () => mesh(34, 34, (a, b) => {
+      const u = -1.3 + 2.6 * a, v = -1.58 + 3.16 * b;
+      return [u * v, u, 1 + v * v];
+    })
+  },
+  cone: {
+    colour: '244,114,182', on: false, mesh: null,
+    build: () => mesh(16, 84, (a, b) => {
+      const t = Math.tan(-1.5705 + 3.141 * b), d = 1 + t ** 4, s = 2.4 * a;
+      return [s * t ** 3 / d, s * t / d, s];
+    })
+  },
+  cubic: {
+    colour: '34,197,94', on: false, mesh: null,
+    build: () => mesh(28, 18, (a, b) => {
+      const y = -1.28 + 2.56 * a;
+      return [y ** 3, y, 3.5 * b];
+    })
+  },
+  quartic: {
+    colour: '56,189,248', on: false, mesh: null,
+    build: () => mesh(28, 18, (a, b) => {
+      const y = -1.257 + 2.514 * a;
+      return [-2.1 + 4.2 * b, y, 1 + y ** 4];
+    })
+  },
+  saddle: {
+    colour: '251,146,60', on: false, mesh: null,
+    build: () => mesh(30, 30, (a, b) => {
+      const x = -2.1 + 4.2 * a, y = -1.4 + 2.8 * b;
+      return [x, y, 1 + x * y];
+    }, (p) => p[2] >= 0 && p[2] <= 3.5)
+  }
+};
+
+function drawSurfaces() {
+  const facets = [];
+  for (const key in SURF) {
+    const S = SURF[key];
+    if (!S.on) continue;
+    if (!S.mesh) S.mesh = S.build();
+    for (const f of S.mesh) {
+      facets.push({
+        f,
+        colour: S.colour,
+        depth: f.c[0] * B.f[0] + f.c[1] * B.f[1] + f.c[2] * B.f[2]
+      });
+    }
+  }
+  if (!facets.length) return;
+
+  facets.sort((p, q) => p.depth - q.depth);       // far side first
+  ctx.lineWidth = 0.6;
+  for (const item of facets) {
+    const n = item.f.n;
+    const lit = Math.abs(n[0] * B.f[0] + n[1] * B.f[1] + n[2] * B.f[2]);
+    const shade = 0.45 + 0.55 * lit;              // edge-on facets stay fainter
+    ctx.fillStyle = `rgba(${item.colour},${(0.14 * shade).toFixed(3)})`;
+    ctx.strokeStyle = `rgba(${item.colour},${(0.20 * shade).toFixed(3)})`;
+    ctx.beginPath();
+    item.f.q.forEach((p, i) => {
+      const [x, y] = proj(p);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+// --------------------------------------------------------------------- scene
+
+function draw() {
+  camera();
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '13px Inter, system-ui, sans-serif';
+
+  const t = tPar, z = 1 + t ** 4;
+  const P = [t ** 3, t, z];              // on the space curve
+  const Pz = [t ** 3, t, 0];             // its shadow on the floor
+  const Px = [0, t, z];                  // its shadow on the plane X = 0
+  const Pl = [t ** 3 / z, t / z, 1];     // where the ray meets the plane Z = 1
+
+  // floor grid
+  for (let x = -2; x <= 2; x++) seg([x, -1.4, 0], [x, 1.4, 0], COL.faint, 1);
+  for (let y = -1; y <= 1; y++) seg([-2.1, y, 0], [2.1, y, 0], COL.faint, 1);
+
+  // the plane X = 0, drawn as an outline so the curves behind it stay visible
+  quad([[0, -1.4, 0], [0, 1.4, 0], [0, 1.4, 3.5], [0, -1.4, 3.5]],
+       null, 'rgba(56,189,248,0.22)');
+  label([0, 1.4, 3.5], 'X = 0', COL.blue, 8, -4);
+
+  // the plane Z = 1 and its own coordinate frame
+  quad([[-2.1, -1.4, 1], [2.1, -1.4, 1], [2.1, 1.4, 1], [-2.1, 1.4, 1]],
+       COL.plane, COL.planeEdge);
+  label([2.1, -1.4, 1], 'Z = 1', COL.planeEdge, 8, 10);
+  arrowTo([0, 0, 1], [1.15, 0, 1], 'rgba(226,232,240,0.45)');
+  arrowTo([0, 0, 1], [0, 1.05, 1], 'rgba(226,232,240,0.45)');
+  label([1.15, 0, 1], 'X/Z', COL.label, 6, -8);
+  label([0, 1.05, 1], 'Y/Z', COL.label, 6, -8);
+  label([0, 0, 1], 'O', COL.label, -14, -8);
+
+  // ambient axes
+  arrowTo([0, 0, 0], [2.3, 0, 0], COL.axis);
+  arrowTo([0, 0, 0], [0, 1.6, 0], COL.axis);
+  arrowTo([0, 0, 0], [0, 0, 3.6], COL.axis);
+  label([2.3, 0, 0], 'X', COL.text, 8, 6);
+  label([0, 1.6, 0], 'Y', COL.text, 8, 6);
+  label([0, 0, 3.6], 'Z', COL.text, 8, -6);
+  ctx.font = '11px Inter, system-ui, sans-serif';
+  for (let x = -2; x <= 2; x++) if (x) label([x, 0, 0], String(x), COL.label, 0, 12, 'center');
+  for (let zz = 1; zz <= 3; zz++) label([0, 0, zz], String(zz), COL.label, -10, 0, 'right');
+  ctx.font = '13px Inter, system-ui, sans-serif';
+
+  // surfaces go under the curves, so the curves stay legible through them
+  drawSurfaces();
+  if (SURF.umbrella.on) dot([0, 0, 1], '#a78bfa', 4);
+
+  // shadows, then the curve itself
+  stroke(shadowZ0, COL.green, 2.2);
+  stroke(shadowX0, COL.blue, 2.2);
+  lemniFull.forEach((arc) => stroke(arc, 'rgba(244,114,182,0.30)', 2));
+  stroke(lemniSwept, COL.lemni, 3);
+  stroke(gammaPts, COL.gamma, 2.6);
+
+  label(shadowZ0[shadowZ0.length - 1], 'X = Y³', COL.green, 8, 4);
+  label(shadowX0[shadowX0.length - 1], 'Z = 1 + Y⁴', COL.blue, 8, -6);
+
+  // the ray from the origin, continued a little past the curve
+  seg([0, 0, 0], [P[0] * 1.12, P[1] * 1.12, P[2] * 1.12], 'rgba(244,114,182,0.85)', 1.5, [3, 4]);
+
+  // drops from the point to its two shadows, and from the floor point to the axes
+  seg(P, Pz, 'rgba(226,232,240,0.35)', 1, [4, 4]);
+  seg(P, Px, 'rgba(56,189,248,0.45)', 1, [4, 4]);
+  seg(Pz, [t ** 3, 0, 0], 'rgba(226,232,240,0.22)', 1, [2, 4]);
+  seg(Pz, [0, t, 0], 'rgba(226,232,240,0.22)', 1, [2, 4]);
+
+  dot(Pz, COL.green, 4.5);
+  dot(Px, COL.blue, 4.5);
+  dot(Pl, COL.lemni, 5.5);
+  dot(P, COL.gamma, 5.5);
+  label(P, '(t³, t, 1+t⁴)', COL.gamma, 10, -8);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+// ------------------------------------------------------------------ readout
+
+function refresh() {
+  const t = tPar, z = 1 + t ** 4;
+  document.getElementById('t-val').textContent = t.toFixed(3);
+  document.getElementById('readout').innerHTML = `
+    <tr><td>&Gamma;(t)</td><td>(${(t ** 3).toFixed(3)}, ${t.toFixed(3)}, ${z.toFixed(3)})</td></tr>
+    <tr><td>on Z = 1</td><td>(${(t ** 3 / z).toFixed(3)}, ${(t / z).toFixed(3)})</td></tr>
+    <tr><td>azimuth</td><td>${(az * 180 / Math.PI).toFixed(0)}&deg;</td></tr>
+    <tr><td>elevation</td><td>${(el * 180 / Math.PI).toFixed(0)}&deg;</td></tr>`;
+  draw();
+}
+
+// -------------------------------------------------------------- interaction
+
+let dragging = false, lastX = 0, lastY = 0;
+
+cv.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  cv.setPointerCapture(e.pointerId);
+  const k = cv.width / cv.getBoundingClientRect().width;
+  lastX = e.clientX * k; lastY = e.clientY * k;
+  e.preventDefault();
+});
+
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const k = cv.width / cv.getBoundingClientRect().width;
+  const x = e.clientX * k, y = e.clientY * k;
+  az -= (x - lastX) * 0.005;
+  el = Math.max(-1.45, Math.min(1.45, el + (y - lastY) * 0.004));
+  lastX = x; lastY = y;
+  refresh();
+});
+
+const release = (e) => {
+  if (!dragging) return;
+  dragging = false;
+  if (cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+};
+cv.addEventListener('pointerup', release);
+cv.addEventListener('pointercancel', release);
+
+cv.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  scale = Math.max(60, Math.min(420, scale * Math.exp(-e.deltaY * 0.0012)));
+  refresh();
+}, { passive: false });
+
+cv.addEventListener('keydown', (e) => {
+  const step = 0.08;
+  if (e.key === 'ArrowLeft') az += step;
+  else if (e.key === 'ArrowRight') az -= step;
+  else if (e.key === 'ArrowUp') el = Math.min(1.45, el + step);
+  else if (e.key === 'ArrowDown') el = Math.max(-1.45, el - step);
+  else return;
+  e.preventDefault();
+  refresh();
+});
+
+const slider = document.getElementById('t-slider');
+slider.addEventListener('input', (e) => {
+  tPar = parseFloat(e.target.value);
+  playing = false;
+  document.getElementById('play').textContent = 'Sweep t';
+  refresh();
+});
+
+document.getElementById('play').addEventListener('click', (e) => {
+  playing = !playing;
+  e.target.textContent = playing ? 'Stop' : 'Sweep t';
+  if (playing) { playT0 = performance.now(); requestAnimationFrame(tick); }
+});
+
+document.querySelectorAll('[data-surf]').forEach((box) => {
+  box.addEventListener('change', () => {
+    SURF[box.dataset.surf].on = box.checked;
+    refresh();
+  });
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  az = 0.92; el = 0.30; scale = 140;
+  refresh();
+});
+
+function tick(now) {
+  if (!playing) return;
+  tPar = T_MAX * Math.sin((now - playT0) / 4200);
+  slider.value = String(tPar);
+  refresh();
+  requestAnimationFrame(tick);
+}
+
+refresh();
+</script>
+</body>
+</html>
