@@ -69,6 +69,17 @@
       </div>
 
       <div class="info-group">
+        <h3>x against &phi;</h3>
+        <p class="hint">
+          The lift itself: x = &plusmn;&radic;((F<sub>+</sub>&minus;&phi;)/(F<sub>+</sub>+&phi;)),
+          upper and lower branch. The white dot is the state; the amber dot is
+          its x, the green one its &phi;. The vertical axis carries x through
+          (2/&pi;)arctan x, so x = &infin; sits on the two edges and the outer
+          branch, which runs out there twice a period, stays in frame.
+        </p>
+      </div>
+
+      <div class="info-group">
         <h3>The two sheets</h3>
         <p class="hint">
           &phi; is even in x, so the swept interval carries two sheets,
@@ -95,15 +106,33 @@
     </aside>
 
     <section class="panel plots">
-      <div class="plot-block">
-        <div class="plot-title">
-          <span>x<sup>2</sup>(t)</span>
-          <span class="legend">
-            <span class="key"><i style="background:#10b981"></i>route A</span>
-            <span class="key"><i style="background:#f59e0b"></i>route B</span>
-          </span>
+      <div class="plot-row">
+        <div class="plot-block half">
+          <div class="plot-title">
+            <span>x<sup>2</sup>(t)</span>
+            <span class="legend">
+              <span class="key"><i style="background:#10b981"></i>route A</span>
+              <span class="key"><i style="background:#f59e0b"></i>route B</span>
+            </span>
+          </div>
+          <canvas id="canvas-x2" width="430" height="300"></canvas>
         </div>
-        <canvas id="canvas-x2" width="880" height="300"></canvas>
+
+        <div class="plot-block half">
+          <div class="plot-title">
+            <span>x against &phi;, y = (2/&pi;)&thinsp;arctan&thinsp;x</span>
+            <span class="legend">
+              <span class="key"><i style="background:#f59e0b"></i>x</span>
+              <span class="key"><i style="background:#10b981"></i>&phi;</span>
+            </span>
+          </div>
+          <canvas id="canvas-xphi" width="430" height="300"></canvas>
+          <p class="hint">
+            The vertical axis is not x itself but (2/&pi;)arctan x, so
+            x = &plusmn;&infin; land on the two edges. The tick labels are
+            values of x.
+          </p>
+        </div>
       </div>
 
       <div class="plot-row">

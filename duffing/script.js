@@ -221,6 +221,106 @@ function drawX2(data) {
     curve(data.xB, '#f59e0b', [6, 4]);
 }
 
+// The lift, drawn honestly: phi runs along the horizontal axis and x along the
+// vertical one, so the two branches x = +-sqrt((F+ - phi)/(F+ + phi)) are the
+// upper and lower halves of one arch. The white dot is the state and its two
+// shadows are the dots on the axes: x in amber, phi in green.
+//
+// The vertical axis carries x through v = (2/pi) arctan x, all but linear near
+// the origin and putting x = infinity on the two edges. Without that the outer
+// branch, which runs out to infinity twice per period, spends more than half
+// its time off the frame. In the angle psi = 2 arctan x the arch is simply
+// phi = F+ cos psi, so it is sampled in psi and never touches a square root.
+function drawXPhi(data, i) {
+    const cv = document.getElementById('canvas-xphi');
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+    const { Fp, M2 } = derived();
+
+    const xIn = M2 > 0 ? Math.sqrt((a2 / 4 - Math.sqrt(M2)) / E1) : null;
+    const pLo = -Fp * 1.06, pHi = Fp * 1.06;
+    const toX = (p) => PAD.l + ((p - pLo) / (pHi - pLo)) * pw;
+    const toY = (x) => PAD.t + ph / 2 - (2 / Math.PI) * Math.atan(x) * (ph / 2);
+    const swept = (x) => (M2 <= 0 ? true
+                        : outer ? Math.abs(x) >= 1 / xIn : Math.abs(x) <= xIn);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = '11px Inter';
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD.l, PAD.t, pw, ph);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.moveTo(PAD.l, toY(0)); ctx.lineTo(PAD.l + pw, toY(0));
+    ctx.moveTo(toX(0), PAD.t); ctx.lineTo(toX(0), PAD.t + ph);
+    ctx.stroke();
+
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('\u2212F\u208a', toX(-Fp), toY(0) + 6);
+    ctx.fillText('F\u208a', toX(Fp), toY(0) + 6);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const v of [-5, -2, -1, 1, 2, 5]) ctx.fillText(String(v), toX(0) + 5, toY(v));
+    ctx.fillText('\u221e', toX(0) + 5, PAD.t + 8);
+    ctx.fillText('\u2212\u221e', toX(0) + 5, PAD.t + ph - 8);
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('\u03c6', W - PAD.r, toY(0) - 6);
+    ctx.textAlign = 'left';
+    ctx.fillText('(2/\u03c0)arctan x', toX(0) + 6, PAD.t + 24);
+    ctx.font = '11px Inter';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'right';
+    ctx.fillText('vertical axis: (2/\u03c0) arctan x', W - PAD.r - 4, PAD.t + 14);
+
+    // the arch, brighter on the part the motion actually covers
+    const arch = (test, colour, width) => {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        let pen = false;
+        for (let j = 0; j <= 700; j++) {
+            const psi = -Math.PI + 2 * Math.PI * j / 700;
+            const x = Math.tan(psi / 2);
+            if (!test(x)) { pen = false; continue; }
+            const px = toX(Fp * Math.cos(psi));
+            const py = PAD.t + ph / 2 - (psi / Math.PI) * (ph / 2);
+            if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+    };
+    arch(() => true, 'rgba(148,163,184,0.45)', 1.8);
+    arch(swept, '#e2e8f0', 2.6);
+
+    // the state and its two shadows
+    const s = data.xraw[i];
+    const trueX = data.chartOf[i] === 0 ? s : 1 / s;
+    const phi = data.phi[i];
+    const py = toY(trueX);
+
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = 'rgba(226,232,240,0.30)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(toX(phi), py); ctx.lineTo(toX(phi), toY(0));
+    ctx.moveTo(toX(phi), py); ctx.lineTo(toX(0), py);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath(); ctx.arc(toX(phi), toY(0), 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath(); ctx.arc(toX(0), py, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath(); ctx.arc(toX(phi), py, 5.5, 0, Math.PI * 2); ctx.fill();
+}
+
 function drawErr(data) {
     const cv = document.getElementById('canvas-err');
     const ctx = cv.getContext('2d');
@@ -522,6 +622,8 @@ function drawLemniscate(data, i) {
 
 function drawWells(data, i) {
     const { Fp, M2 } = derived();
+
+    drawXPhi(data, i);   // the lift panel shares the frame clock with the wells
 
     // lemniscatic oscillator: barrier of height a2/4 at x = +-1
     const xs = [], us = [];
