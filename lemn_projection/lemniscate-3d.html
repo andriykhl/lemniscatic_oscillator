@@ -162,7 +162,7 @@ button:hover { background: rgba(255,255,255,0.11); }
       <label class="toggle" style="--sw:#f472b6">
         <input type="checkbox" data-surf="cone">
         <span class="swatch"></span>
-        <span>Projective cone, (X²+Y²)² = XYZ²</span>
+        <span>Cone &alpha;&middot;&Gamma;(t), (X²+Y²)² = XYZ²</span>
       </label>
       <label class="toggle" style="--sw:#22c55e">
         <input type="checkbox" data-surf="cubic">
@@ -388,9 +388,13 @@ const SURF = {
   },
   cone: {
     colour: '244,114,182', on: false, mesh: null,
-    build: () => mesh(16, 84, (a, b) => {
-      const t = Math.tan(-1.5705 + 3.141 * b), d = 1 + t ** 4, s = 2.4 * a;
-      return [s * t ** 3 / d, s * t / d, s];
+    // The fan of rays from the vertex out to the curve, alpha * Gamma(t) with
+    // 0 <= alpha <= 1. The same quartic cone, but ruled by the rays themselves
+    // and cut off at Gamma, so the lemniscate sits inside it as the section
+    // alpha = 1/(1+t⁴), where the rays cross the plane Z = 1.
+    build: () => mesh(16, 96, (a, b) => {
+      const t = -T_MAX + 2 * T_MAX * b;
+      return [a * t ** 3, a * t, a * (1 + t ** 4)];
     })
   },
   cubic: {
