@@ -83,6 +83,12 @@ function viewScale(width, height) {
     return Math.min(width, height) / 8;
 }
 
+// KaTeX re-renders a display block in tens of milliseconds, and a drag fires
+// pointermove on every frame. The invariants depend only on M and the
+// amplitude, the matrix only on the boost, so neither changes while the centre
+// is dragged: render only when the string itself differs.
+let lastInvTex = null, lastMatrixTex = null;
+
 // Update UI and Math
 function updateUI() {
     etaSValDisplay.textContent = etaS.toFixed(2);
@@ -90,11 +96,11 @@ function updateUI() {
     if (ampValDisplay) ampValDisplay.textContent = etaAmp.toFixed(2);
     if (mmValDisplay) mmValDisplay.textContent = MM.toFixed(3);
     const invBox = document.getElementById('invariants');
-    if (invBox && typeof katex !== 'undefined') {
+    const invTex = `\\begin{aligned} \\alpha_{\\mathrm{1D}}^{2} &= 4\\mathcal{M}\\cosh 4\\eta_0 = ${alphaSq().toFixed(3)} \\\\[0.5ex] \\mathcal{T} &= \\frac{K(\\tanh 2\\eta_0)}{\\sqrt{\\mathcal{M}}\\,\\cosh 2\\eta_0} = ${period().toFixed(3)} \\end{aligned}`;
+    if (invBox && typeof katex !== 'undefined' && invTex !== lastInvTex) {
         try {
-            katex.render(
-                `\\begin{aligned} \\alpha_{\\mathrm{1D}}^{2} &= 4\\mathcal{M}\\cosh 4\\eta_0 = ${alphaSq().toFixed(3)} \\\\[0.5ex] \\mathcal{T} &= \\frac{K(\\tanh 2\\eta_0)}{\\sqrt{\\mathcal{M}}\\,\\cosh 2\\eta_0} = ${period().toFixed(3)} \\end{aligned}`,
-                invBox, { throwOnError: false, displayMode: true });
+            katex.render(invTex, invBox, { throwOnError: false, displayMode: true });
+            lastInvTex = invTex;
         } catch (e) { /* ignore */ }
     }
 
@@ -102,12 +108,13 @@ function updateUI() {
     const sh = Math.sinh(etaS).toFixed(2);
 
     const matrixTex = `\\begin{aligned} x' &= \\Lambda(\\eta_s)\\,x \\\\[0.3ex] e'_a &= \\Lambda(-\\eta_s)\\,e_a \\\\[0.8ex] \\Lambda(\\eta_s) &= \\begin{pmatrix} \\cosh \\eta_s & \\sinh \\eta_s \\\\ \\sinh \\eta_s & \\cosh \\eta_s \\end{pmatrix} \\\\[0.5ex] &\\approx \\begin{pmatrix} ${ch} & ${sh} \\\\ ${sh} & ${ch} \\end{pmatrix} \\end{aligned}`;
-    if (typeof katex !== 'undefined' && mathMatrix) {
+    if (typeof katex !== 'undefined' && mathMatrix && matrixTex !== lastMatrixTex) {
         try {
             katex.render(matrixTex, mathMatrix, {
                 throwOnError: false,
                 displayMode: true
             });
+            lastMatrixTex = matrixTex;
         } catch (e) {
             console.error("KaTeX rendering error:", e);
         }
@@ -546,8 +553,10 @@ function rapidityAt(canvas, x, y) {
     const h = (x - cx) / scale, v = (cy - y) / scale;
     const [s, u] = spacelike ? [v, h] : [h, v];
     if (u <= 0) return null;                  // wrong half of the cone
-    const w = s / u;
-    if (Math.abs(w) >= 1) return null;        // outside the light cone
+    // Clamp instead of bailing out: a pointer that strays past the asymptote
+    // should pin the centre at the end of its range, not freeze the drag.
+    const lim = Math.tanh(3);
+    const w = Math.max(-lim, Math.min(lim, s / u));
     return Math.atanh(w);
 }
 
@@ -559,10 +568,16 @@ function setEtaR(value) {
     const step = etaRSlider ? parseFloat(etaRSlider.step) : 0.01;
     const v = parseFloat(
         (Math.round(Math.min(hi, Math.max(lo, value)) / step) * step).toFixed(6));
-    if (v === etaR) return;                   // no reset on sub-step jitter
+    if (v === etaR) return;                   // nothing to do on sub-step jitter
+    // Carry the motion with the centre: Delta = eta - etaR and its derivative
+    // are left alone, so the amplitude is preserved exactly and the trace does
+    // not restart. Resetting here made the particle jump back to its turning
+    // point and wiped the history on every pixel of the drag.
+    const shift = v - etaR;
     etaR = v;
+    etaState += shift;
+    for (const h of history) h.eta += shift;
     if (etaRSlider) etaRSlider.value = String(v);
-    resetMotion();
     updateUI();
 }
 

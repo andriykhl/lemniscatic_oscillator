@@ -321,6 +321,71 @@ function drawXPhi(data, i) {
     ctx.beginPath(); ctx.arc(toX(phi), py, 5.5, 0, Math.PI * 2); ctx.fill();
 }
 
+// --- Dragging the energy level ------------------------------------------
+// The dashed violet line is E_1D itself on the U(x) panel and the Duffing
+// level -2M^2 on the V(phi) one, where M^2 = (a^2/4)^2 - E^2, so that level is
+// 2E^2 - a^4/8 and inverts to E = sqrt((level + a^4/8)/2). Dragging either line
+// is the same input as the E_1D slider, and both go through setE1.
+
+function setE1(value) {
+    const es = document.getElementById('e-slider');
+    const lo = es ? parseFloat(es.min) : 0.005;
+    const hi = es ? parseFloat(es.max) : 0.8;
+    const step = es ? parseFloat(es.step) : 0.005;
+    if (!Number.isFinite(value)) return;
+    const v = parseFloat(
+        (Math.round(Math.min(hi, Math.max(lo, value)) / step) * step).toFixed(6));
+    if (v === E1) return;                  // no re-integration on sub-step jitter
+    E1 = v;
+    if (es) es.value = String(v);
+    update();
+}
+
+const LEVEL_TO_E = {
+    'canvas-ulem': (level) => level,
+    'canvas-uduf': (level) => Math.sqrt(Math.max(0, (level + a2 * a2 / 8) / 2))
+};
+
+function attachLevelDrag(id) {
+    const cv = document.getElementById(id);
+    if (!cv) return;
+    cv.style.touchAction = 'none';
+    let dragging = false;
+
+    const yAt = (ev) => {
+        const r = cv.getBoundingClientRect();
+        return (ev.clientY - r.top) * cv.height / r.height;
+    };
+    const onLine = (py) => cv._level && Math.abs(py - cv._level.y) <= 9;
+
+    cv.addEventListener('pointerdown', (ev) => {
+        if (!onLine(yAt(ev))) return;
+        dragging = true;
+        cv.setPointerCapture(ev.pointerId);
+        cv.style.cursor = 'grabbing';
+        ev.preventDefault();
+    });
+
+    cv.addEventListener('pointermove', (ev) => {
+        const py = yAt(ev);
+        if (!dragging) {
+            cv.style.cursor = onLine(py) ? 'ns-resize' : 'default';
+            return;
+        }
+        setE1(LEVEL_TO_E[id](cv._level.toValue(py)));
+        ev.preventDefault();
+    });
+
+    const release = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        if (cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);
+        cv.style.cursor = 'ns-resize';
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+}
+
 function drawErr(data) {
     const cv = document.getElementById('canvas-err');
     const ctx = cv.getContext('2d');
@@ -372,6 +437,13 @@ function wellPanel(id, xs, ys, level, dot, xLabel, colour, fixedY, cover) {
 
     const toX = (x) => P.l + ((x - xLo) / (xHi - xLo)) * pw;
     const toY = (y) => P.t + ph - ((y - yLo) / (yHi - yLo)) * ph;
+
+    // Where the level sits on screen, and the inverse of toY, so that the
+    // pointer handler can drag the line without knowing the panel's scale.
+    cv._level = {
+        y: toY(level),
+        toValue: (py) => yLo + (1 - (py - P.t) / ph) * (yHi - yLo)
+    };
 
     ctx.clearRect(0, 0, W, H);
 
@@ -761,7 +833,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     a2s.addEventListener('input', (e) => { a2 = parseFloat(e.target.value); update(); });
-    es.addEventListener('input', (e) => { E1 = parseFloat(e.target.value); update(); });
+    es.addEventListener('input', (e) => setE1(parseFloat(e.target.value)));
+    attachLevelDrag('canvas-ulem');
+    attachLevelDrag('canvas-uduf');
     update();
     requestAnimationFrame(animate);
 });
