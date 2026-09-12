@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Effective radial potential of the lemniscatic oscillator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #14171d;
+  --panel: #191d25;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #a78bfa;
+  --pos: #10b981;
+  --neg: #ef4444;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 2rem 1rem 3rem;
+  background: var(--bg); color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif; line-height: 1.55;
+}
+header { max-width: 1500px; margin: 0 auto 1.5rem; }
+header h1 { margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+header p { margin: 0; max-width: 72ch; color: var(--text-muted); font-size: 0.92rem; }
+.container { max-width: 1500px; margin: 0 auto; display: flex; gap: 1.25rem; align-items: flex-start; }
+.panel {
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+aside.panel { flex: 0 0 300px; }
+.stage { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
+canvas {
+  display: block; width: 100%; height: auto;
+  background: #10131a; border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px; touch-action: none;
+}
+.section-title {
+  margin: 0 0 1rem; font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+}
+.control-group { margin-bottom: 1.2rem; }
+.control-group label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.45rem; font-size: 0.9rem;
+}
+.value { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.group { margin-top: 1.3rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.07); }
+.group h3 { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 500; }
+.hint { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-muted); }
+.readout { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.readout td { padding: 0.18rem 0; }
+.readout td:first-child { color: var(--text-muted); }
+.readout td:last-child { text-align: right; }
+.key { display: flex; align-items: center; gap: 0.5rem; font-size: 0.79rem; margin-bottom: 0.35rem; }
+.key i { width: 16px; height: 10px; border-radius: 3px; flex: none; }
+.row { display: flex; gap: 1.25rem; align-items: flex-start; }
+.row > .grow { flex: 1; min-width: 0; }
+.row > .fixed { flex: 0 0 470px; }
+@media (max-width: 1100px) {
+  .container, .row { flex-direction: column; }
+  aside.panel, .row > .fixed { flex: none; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Effective radial potential</h1>
+  <p>
+    U<sub>eff</sub>(r) = L²/(2&thinsp;m(r)r²) + (&alpha;²/2)&thinsp;m(r)r² with m(r) = 1/(1+r⁴).
+    Both terms depend on r only through m(r)r² = r²/(1+r⁴), which is unchanged by
+    r &rarr; 1/r, so U<sub>eff</sub>(1/r) = U<sub>eff</sub>(r): the two wells hold
+    equal values, though on a linear axis the inner one is squeezed towards the origin.
+  </p>
+</header>
+
+<main class="container">
+  <aside class="panel">
+    <h2 class="section-title">Parameters</h2>
+
+    <div class="control-group">
+      <label><span>L²</span><span class="value" id="l2-val">0.050</span></label>
+      <input type="range" id="l2-slider" min="0" max="0.6" step="0.005" value="0.05">
+    </div>
+
+    <div class="control-group">
+      <label><span>&alpha;²</span><span class="value" id="a2-val">1.00</span></label>
+      <input type="range" id="a2-slider" min="0.05" max="2" step="0.01" value="1">
+    </div>
+
+    <div class="control-group">
+      <label><span>E</span><span class="value" id="e-val">0.350</span></label>
+      <input type="range" id="e-slider" min="0" max="1.5" step="0.005" value="0.35">
+      <p class="hint">
+        The violet line can also be dragged on the plot. E is needed because the
+        sign of &#119924;² is a statement about the energy, not about r.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>Derived</h3>
+      <table class="readout" id="readout"></table>
+    </div>
+
+    <div class="group">
+      <h3>Shading</h3>
+      <div class="key"><i style="background:rgba(16,185,129,0.35)"></i>&#119924;² &gt; 0, below the barrier</div>
+      <div class="key"><i style="background:rgba(239,68,68,0.30)"></i>&#119924;² &lt; 0, over the barrier</div>
+      <div class="key"><i style="background:rgba(148,163,184,0.25)"></i>E below U<sub>min</sub>, no motion</div>
+      <div class="key"><i style="background:#ef4444;height:3px"></i>&alpha; = 2L, the bifurcation</div>
+      <div class="key"><i style="background:#10b981;height:3px"></i>&alpha;L = E, the level meets U<sub>min</sub></div>
+      <div class="key"><i style="background:#38bdf8;height:3px"></i>L&sup2;+&alpha;&sup2;/4 = E, it meets the barrier</div>
+      <p class="hint">
+        The parameter panel is drawn in &alpha; and L, where the three
+        boundaries are simplest: &alpha; = 2L for the bifurcation,
+        &alpha;L = E where the level reaches U<sub>min</sub>, and
+        L&sup2; + &alpha;&sup2;/4 = E where it reaches the barrier top. All
+        three cross at (&alpha;, L) = (&radic;2E, &radic;(E/2)).
+      </p>
+      <p class="hint">
+        The bands are energy ranges: below the top of the barrier at r = 1 the
+        orbit is trapped on one side of it, above it the orbit crosses r = 1.
+        At L = 0 that boundary is exactly &alpha;<sub>1D</sub>²/4, the
+        sub-barrier condition of the one-dimensional problem.
+      </p>
+      <p class="hint">
+        The sign of &alpha;<sub>1D</sub>&sup2; is a different statement, about the
+        parameters rather than about the energy, so it carries its own colour:
+        blue above the line &alpha; = 2L and pink below it. The white
+        marker in that panel can be dragged, which moves both sliders at once. The
+        U<sub>eff</sub> curve itself switches between the two, so the sign is
+        readable without looking at the parameter plane, where the same sign is
+        the side of the red line &alpha; = 2L. Green and red never
+        mean anything but &#119924;&sup2;.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>Where the wells are</h3>
+      <p class="hint">
+        Writing s = m(r)r² &isin; (0, ½] gives U<sub>eff</sub> = L²/2s + &alpha;²s/2,
+        minimised at s = L/&alpha;. That value is reachable only while
+        2L &le; &alpha;, that is &alpha;<sub>1D</sub>² &ge; 0, and then
+        r<sub>0</sub>² = (&alpha; &minus; &alpha;<sub>1D</sub>)/2L with the second
+        well at 1/r<sub>0</sub>. Past the bifurcation the two wells merge into a
+        single minimum at r = 1.
+      </p>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="panel">
+      <canvas id="canvas-u" width="980" height="460"></canvas>
+    </div>
+    <div class="row">
+      <div class="panel fixed">
+        <canvas id="canvas-par" width="440" height="360"></canvas>
+      </div>
+      <div class="panel grow">
+        <h3 style="margin:0 0 0.6rem;font-size:0.9rem;font-weight:500;">Reading the two signs</h3>
+        <p class="hint" id="verdict"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+let L2 = 0.05, A2 = 1, E = 0.35;
+
+const mr2 = (r) => (r * r) / (1 + r ** 4);          // m(r) r^2, invariant under r -> 1/r
+const U = (r) => {
+    const s = mr2(r);
+    return s > 0 ? L2 / (2 * s) + A2 * s / 2 : Infinity;
+};
+
+// alpha_1D^2 = alpha^2 - 4L^2 decides whether s = L/alpha is reachable, since
+// s never exceeds 1/2. Above the bifurcation there are two wells exchanged by
+// r -> 1/r with a barrier at r = 1; below it a single minimum sits at r = 1.
+function shape() {
+    const L = Math.sqrt(L2), al = Math.sqrt(A2);
+    const a1 = A2 - 4 * L2;
+    const uTop = L2 + A2 / 4;                        // U at r = 1
+    if (a1 > 0 && L2 > 0) {
+        const r0sq = (al - Math.sqrt(a1)) / (2 * L);
+        return { a1, uTop, uMin: al * L, r0: Math.sqrt(r0sq), split: true };
+    }
+    if (L2 === 0) return { a1, uTop, uMin: 0, r0: 0, split: true };  // the 1D case
+    return { a1, uTop, uMin: uTop, r0: 1, split: false };
+}
+
+const PAD = { l: 62, r: 18, t: 18, b: 34 };
+
+function frameU() {
+    const cv = document.getElementById('canvas-u');
+    const w = cv.width, h = cv.height;
+    const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
+    const sh = shape();
+    const yMax = Math.max(sh.uTop * 1.9, sh.uMin + 0.35);
+    // Linear in r, wide enough to hold the outer well with room to spare.
+    const outer = sh.split && L2 > 0 ? 1 / sh.r0 : 1.6;
+    const rMax = Math.min(10, Math.max(3, 1.8 * outer));
+    return {
+        cv, ctx: cv.getContext('2d'), w, h, pw, ph, sh, yMax, rMax,
+        toX: (r) => PAD.l + (r / rMax) * pw,
+        toY: (u) => PAD.t + ph - (u / yMax) * ph,
+        toU: (py) => (PAD.t + ph - py) / ph * yMax
+    };
+}
+
+function drawU() {
+    const F = frameU(), ctx = F.ctx;
+    ctx.clearRect(0, 0, F.w, F.h);
+    ctx.font = '12px Inter';
+
+    // energy bands: below U_min nothing moves, then the sub-barrier band, then
+    // the region over the barrier. With a single well the middle band is empty.
+    const yTop = F.toY(F.sh.uTop), yMin = F.toY(F.sh.uMin), yZero = F.toY(0);
+    ctx.fillStyle = 'rgba(148,163,184,0.10)';
+    ctx.fillRect(PAD.l, yMin, F.pw, Math.max(0, yZero - yMin));
+    if (F.sh.split && yMin - yTop > 0.5) {
+        ctx.fillStyle = 'rgba(16,185,129,0.13)';
+        ctx.fillRect(PAD.l, yTop, F.pw, yMin - yTop);
+    }
+    ctx.fillStyle = 'rgba(239,68,68,0.11)';
+    ctx.fillRect(PAD.l, PAD.t, F.pw, Math.max(0, yTop - PAD.t));
+
+    // frame and ticks
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD.l, PAD.t, F.pw, F.ph);
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const rStep = F.rMax <= 4 ? 0.5 : 1;
+    for (let r = 0; r <= F.rMax + 1e-9; r += rStep) {
+        const x = F.toX(r);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + F.ph); ctx.stroke();
+        ctx.fillText(r.toFixed(rStep < 1 ? 1 : 0), x, PAD.t + F.ph + 7);
+    }
+    // r = 1 is the fixed point of r -> 1/r, and the top of the barrier
+    const xOne = F.toX(1);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.moveTo(xOne, PAD.t); ctx.lineTo(xOne, PAD.t + F.ph); ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const stepY = F.yMax > 1 ? 0.25 : 0.05;
+    for (let u = 0; u <= F.yMax; u += stepY) {
+        const y = F.toY(u);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + F.pw, y); ctx.stroke();
+        ctx.fillText(u.toFixed(2), PAD.l - 8, y);
+    }
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('r', PAD.l + F.pw / 2, F.h - 6);
+    ctx.save();
+    ctx.translate(16, PAD.t + F.ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('U_eff', 0, 0);
+    ctx.restore();
+
+    // the potential
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(PAD.l, PAD.t, F.pw, F.ph);
+    ctx.clip();
+    // The curve itself carries the sign of alpha_1D^2: blue while the two
+    // wells exist, pink once they have merged into one.
+    ctx.strokeStyle = F.sh.split ? '#38bdf8' : '#f472b6';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for (let i = 1; i <= 1200; i++) {
+        const r = F.rMax * i / 1200;
+        const y = F.toY(U(r));
+        i > 1 ? ctx.lineTo(F.toX(r), y) : ctx.moveTo(F.toX(r), y);
+    }
+    ctx.stroke();
+
+    // the minima, and the barrier top at r = 1
+    ctx.fillStyle = '#e2e8f0';
+    const wells = F.sh.split && L2 > 0 ? [F.sh.r0, 1 / F.sh.r0] : (L2 > 0 ? [1] : []);
+    for (const r of wells) {
+        ctx.beginPath(); ctx.arc(F.toX(r), F.toY(U(r)), 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (F.sh.split && L2 > 0) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.arc(F.toX(1), F.toY(F.sh.uTop), 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // the energy level
+    const yE = F.toY(E);
+    ctx.strokeStyle = '#a78bfa';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, yE); ctx.lineTo(PAD.l + F.pw, yE); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    F.cv._level = { y: yE, toValue: F.toU };
+}
+
+function drawPar() {
+    const cv = document.getElementById('canvas-par');
+    const ctx = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    const P = { l: 44, r: 16, t: 16, b: 32 };
+    const pw = w - P.l - P.r, ph = h - P.t - P.b;
+
+    // Drawn in alpha and L rather than their squares, which is where the three
+    // boundaries take their simplest form:
+    //   alpha = 2L            the bifurcation, alpha_1D^2 = 0
+    //   alpha L = E           the level reaches U_min, below it nothing moves
+    //   L^2 + alpha^2/4 = E   the level reaches the barrier top U(1)
+    // All three pass through (alpha, L) = (sqrt(2E), sqrt(E/2)).
+    const AMAX = Math.sqrt(2), LMAX = Math.sqrt(0.6);
+    const toX = (al) => P.l + (al / AMAX) * pw;
+    const toY = (L) => P.t + ph - (L / LMAX) * ph;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = '12px Inter';
+
+    // Regions classified pixel by pixel. Three flat fills, nothing overlaid:
+    // where the level is below U_min nothing moves at all, so that region says
+    // nothing about M^2 or about alpha_1D^2 and is left plain grey. The sign of
+    // alpha_1D^2 is carried by the red line alpha = 2L.
+    const BG = [16, 19, 26];
+    const mix = (c, a) => [BG[0] + (c[0] - BG[0]) * a,
+                           BG[1] + (c[1] - BG[1]) * a,
+                           BG[2] + (c[2] - BG[2]) * a];
+    const FILL = {
+        pos: mix([16, 185, 129], 0.20),      // M^2 > 0, trapped on one side
+        neg: mix([239, 68, 68], 0.15),       // M^2 < 0, crosses r = 1
+        none: mix([148, 163, 184], 0.09)     // E below U_min, no motion
+    };
+    const img = ctx.createImageData(pw, ph);
+    for (let py = 0; py < ph; py++) {
+        const L = ((ph - py - 0.5) / ph) * LMAX, l2 = L * L;
+        for (let px = 0; px < pw; px++) {
+            const al = ((px + 0.5) / pw) * AMAX, a2 = al * al;
+            const a1 = a2 - 4 * l2;
+            const uTop = l2 + a2 / 4;
+            const uMin = a1 > 0 ? al * L : uTop;
+            const rgb = E < uMin ? FILL.none
+                      : (a1 > 0 && E < uTop) ? FILL.pos : FILL.neg;
+            const k = 4 * (py * pw + px);
+            img.data[k] = rgb[0]; img.data[k + 1] = rgb[1];
+            img.data[k + 2] = rgb[2]; img.data[k + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, P.l, P.t);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(P.l, P.t, pw, ph);
+    ctx.clip();
+
+    const curve = (f, from, to, colour) => {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let pen = false;
+        for (let i = 0; i <= 400; i++) {
+            const al = from + (to - from) * i / 400;
+            const L = f(al);
+            if (!Number.isFinite(L) || L < 0) { pen = false; continue; }
+            const x = toX(al), y = toY(L);
+            if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    };
+
+    curve((al) => al / 2, 0, AMAX, '#ef4444');                        // alpha = 2L
+    curve((al) => E / al, 1e-6, AMAX, '#10b981');                     // alpha L = E
+    curve((al) => Math.sqrt(Math.max(0, E - al * al / 4)), 0, Math.min(AMAX, 2 * Math.sqrt(E)),
+          '#38bdf8');                                                 // L^2 + alpha^2/4 = E
+
+    // the point the three of them share
+    const aT = Math.sqrt(2 * E), lT = Math.sqrt(E / 2);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath(); ctx.arc(toX(aT), toY(lT), 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(P.l, P.t, pw, ph);
+
+    // labels on the curves themselves
+    ctx.font = '11px Inter';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ef4444';
+    ctx.fillText('\u03b1 = 2L', toX(AMAX * 0.86) + 4, toY(AMAX * 0.43) - 10);
+    ctx.fillStyle = '#10b981';
+    ctx.fillText('\u03b1L = E', toX(Math.min(AMAX * 0.97, E / (LMAX * 0.22))) - 54,
+                 toY(Math.min(LMAX * 0.95, E / (AMAX * 0.97))) - 12);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('L\u00b2 + \u03b1\u00b2/4 = E', toX(0.06), toY(Math.sqrt(E)) - 12);
+
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (const v of [0, 0.5, 1]) ctx.fillText(v.toFixed(1), toX(v), P.t + ph + 6);
+    ctx.fillText((2 * Math.sqrt(E)).toFixed(2), toX(2 * Math.sqrt(E)), P.t + ph + 6);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const v of [0, 0.25, 0.5, 0.75]) ctx.fillText(v.toFixed(2), P.l - 7, toY(v));
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('\u03b1', P.l + pw / 2, h - 6);
+    ctx.textAlign = 'left';
+    ctx.fillText('L', P.l + 6, P.t + 14);
+
+    ctx.fillStyle = '#e2e8f0';
+    const al0 = Math.sqrt(A2), L0 = Math.sqrt(L2);
+    ctx.beginPath(); ctx.arc(toX(al0), toY(L0), 5.5, 0, Math.PI * 2); ctx.fill();
+
+    // Marker position, and the inverses of the two axis maps returned already
+    // squared, since the sliders carry L^2 and alpha^2.
+    cv._map = {
+        x: toX(al0), y: toY(L0),
+        toA2: (px) => (((px - P.l) / pw) * AMAX) ** 2,
+        toL2: (py) => (((P.t + ph - py) / ph) * LMAX) ** 2
+    };
+}
+
+function refresh() {
+    const sh = shape();
+    document.getElementById('l2-val').textContent = L2.toFixed(3);
+    document.getElementById('a2-val').textContent = A2.toFixed(2);
+    document.getElementById('e-val').textContent = E.toFixed(3);
+
+    const band = E < sh.uMin ? 'below U<sub>min</sub>'
+               : (sh.split && E < sh.uTop) ? '&#119924;&sup2; &gt; 0'
+               : '&#119924;&sup2; &lt; 0';
+    document.getElementById('readout').innerHTML = `
+      <tr><td>&alpha;<sub>1D</sub>&sup2; = &alpha;&sup2; &minus; 4L&sup2;</td><td>${sh.a1.toFixed(3)}</td></tr>
+      <tr><td>U at r = 1</td><td>${sh.uTop.toFixed(4)}</td></tr>
+      <tr><td>U<sub>min</sub></td><td>${sh.uMin.toFixed(4)}</td></tr>
+      <tr><td>barrier</td><td>${Math.max(0, sh.uTop - sh.uMin).toFixed(4)}</td></tr>
+      <tr><td>wells</td><td>${sh.split && L2 > 0
+          ? sh.r0.toFixed(3) + ', ' + (1 / sh.r0).toFixed(3)
+          : (L2 === 0 ? '0, &infin;' : 'r = 1')}</td></tr>
+      <tr><td>E sits in</td><td>${band}</td></tr>`;
+
+    const v = document.getElementById('verdict');
+    v.innerHTML = sh.a1 > 0
+      ? `&alpha;<sub>1D</sub>&sup2; = ${sh.a1.toFixed(3)} &gt; 0, so s = L/&alpha; = ${
+          Math.sqrt(L2 / A2).toFixed(3)} is below the ceiling of &frac12; and the potential has two wells,
+        exchanged by r &rarr; 1/r, with a barrier of ${
+          Math.max(0, sh.uTop - sh.uMin).toFixed(4)} between them. The green band is
+        the range of energies trapped on one side; above it the orbit crosses r = 1.`
+      : `&alpha;<sub>1D</sub>&sup2; = ${sh.a1.toFixed(3)} &le; 0, so s = L/&alpha; would have to
+        exceed the ceiling of &frac12; and cannot be reached. The two wells have merged
+        into a single minimum at r = 1, there is no barrier left, and no energy is
+        trapped on one side: the green band is empty and &#119924;&sup2; &lt; 0 throughout.`;
+
+    drawU();
+    drawPar();
+}
+
+// --- sliders and the draggable level ------------------------------------
+
+function bind(id, set) {
+    const el = document.getElementById(id);
+    el.addEventListener('input', (e) => { set(parseFloat(e.target.value)); refresh(); });
+    return el;
+}
+bind('l2-slider', (v) => { L2 = v; });
+bind('a2-slider', (v) => { A2 = v; });
+const eSlider = bind('e-slider', (v) => { E = v; });
+
+function setE(value) {
+    const lo = parseFloat(eSlider.min), hi = parseFloat(eSlider.max);
+    const step = parseFloat(eSlider.step);
+    const v = parseFloat(
+        (Math.round(Math.min(hi, Math.max(lo, value)) / step) * step).toFixed(6));
+    if (v === E) return;
+    E = v;
+    eSlider.value = String(v);
+    refresh();
+}
+
+// Dragging the marker in the parameter plane sets both sliders at once.
+function setParams(l2, a2) {
+    const ls = document.getElementById('l2-slider');
+    const as = document.getElementById('a2-slider');
+    const q = (el, v) => {
+        const lo = parseFloat(el.min), hi = parseFloat(el.max), st = parseFloat(el.step);
+        return parseFloat(
+            (Math.round(Math.min(hi, Math.max(lo, v)) / st) * st).toFixed(6));
+    };
+    const nl = q(ls, l2), na = q(as, a2);
+    if (nl === L2 && na === A2) return;
+    L2 = nl; A2 = na;
+    ls.value = String(nl);
+    as.value = String(na);
+    refresh();
+}
+
+(function attachParamDrag() {
+    const cv = document.getElementById('canvas-par');
+    let dragging = false;
+    const at = (ev) => {
+        const r = cv.getBoundingClientRect();
+        return [(ev.clientX - r.left) * cv.width / r.width,
+                (ev.clientY - r.top) * cv.height / r.height];
+    };
+    const onDot = (px, py) =>
+        cv._map && Math.hypot(px - cv._map.x, py - cv._map.y) <= 12;
+
+    cv.addEventListener('pointerdown', (ev) => {
+        const [px, py] = at(ev);
+        if (!onDot(px, py)) return;
+        dragging = true;
+        cv.setPointerCapture(ev.pointerId);
+        cv.style.cursor = 'grabbing';
+        ev.preventDefault();
+    });
+    cv.addEventListener('pointermove', (ev) => {
+        const [px, py] = at(ev);
+        if (!dragging) { cv.style.cursor = onDot(px, py) ? 'grab' : 'default'; return; }
+        setParams(cv._map.toL2(py), cv._map.toA2(px));
+        ev.preventDefault();
+    });
+    const release = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        if (cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);
+        cv.style.cursor = 'grab';
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+})();
+
+(function attachLevelDrag() {
+    const cv = document.getElementById('canvas-u');
+    let dragging = false;
+    const yAt = (ev) => {
+        const r = cv.getBoundingClientRect();
+        return (ev.clientY - r.top) * cv.height / r.height;
+    };
+    const onLine = (py) => cv._level && Math.abs(py - cv._level.y) <= 9;
+
+    cv.addEventListener('pointerdown', (ev) => {
+        if (!onLine(yAt(ev))) return;
+        dragging = true;
+        cv.setPointerCapture(ev.pointerId);
+        cv.style.cursor = 'grabbing';
+        ev.preventDefault();
+    });
+    cv.addEventListener('pointermove', (ev) => {
+        const py = yAt(ev);
+        if (!dragging) { cv.style.cursor = onLine(py) ? 'ns-resize' : 'default'; return; }
+        setE(cv._level.toValue(py));
+        ev.preventDefault();
+    });
+    const release = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        if (cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);
+        cv.style.cursor = 'ns-resize';
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+})();
+
+refresh();
+</script>
+</body>
+</html>
