@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boost of the parameters: E, α²/4 and L² against η_s</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #14171d; --panel: #191d25;
+  --text-main: #e2e8f0; --text-muted: #94a3b8; --accent: #a78bfa;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 2rem 1rem 3rem; background: var(--bg); color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif; line-height: 1.55;
+}
+header { max-width: 1500px; margin: 0 auto 1.5rem; }
+header h1 { margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+header p { margin: 0; max-width: 74ch; color: var(--text-muted); font-size: 0.92rem; }
+.container { max-width: 1500px; margin: 0 auto; display: flex; gap: 1.25rem; align-items: flex-start; }
+.panel {
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 1.15rem; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+aside.panel { flex: 0 0 310px; }
+.stage { flex: 1; min-width: 0; display: flex; gap: 1.25rem; align-items: flex-start; }
+.stage > .left { flex: 1.1; min-width: 0; }
+.stage > .right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
+.cap { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--text-muted); }
+@media (max-width: 1250px) { .stage { flex-direction: column; } }
+canvas {
+  display: block; width: 100%; height: auto; background: #10131a;
+  border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; touch-action: none;
+}
+.section-title {
+  margin: 0 0 1rem; font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+}
+.control-group { margin-bottom: 1.2rem; }
+.control-group label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.45rem; font-size: 0.9rem;
+}
+.value { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--accent); }
+input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; display: block; }
+
+/* A tick at the value zero on the two-sided sliders. --zero is the fraction of
+   the track, and the track itself is inset by half a thumb at each end. */
+.slider-wrap { position: relative; padding: 4px 0 13px; }
+.slider-wrap .zero {
+  position: absolute; top: 0; bottom: 13px;
+  left: calc(8px + (100% - 16px) * var(--zero));
+  width: 2px; margin-left: -1px; border-radius: 1px;
+  background: rgba(226,232,240,0.8); pointer-events: none;
+}
+.slider-wrap .zero::after {
+  content: '0'; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px; line-height: 1.1; color: #cbd5e1;
+}
+.group { margin-top: 1.3rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.07); }
+.group h3 { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 500; }
+.hint { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-muted); }
+.readout { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.readout td { padding: 0.18rem 0; }
+.readout td:first-child { color: var(--text-muted); }
+.readout td:last-child { text-align: right; }
+.key { display: flex; align-items: center; gap: 0.5rem; font-size: 0.79rem; margin-bottom: 0.35rem; }
+.key i { width: 18px; height: 3px; border-radius: 2px; flex: none; }
+@media (max-width: 1000px) { .container { flex-direction: column; } aside.panel { flex: none; width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>How the boost moves the parameters</h1>
+  <p>
+    E = (&alpha;<sub>1D</sub>²/4)&thinsp;sinh&thinsp;4&eta;<sub>s</sub> + E<sub>1D</sub>&thinsp;cosh&thinsp;4&eta;<sub>s</sub>,
+    &alpha;²/4 = (&alpha;<sub>1D</sub>²/8)&thinsp;cosh&thinsp;4&eta;<sub>s</sub> + (E<sub>1D</sub>/2)&thinsp;sinh&thinsp;4&eta;<sub>s</sub> + &alpha;<sub>1D</sub>²/8,
+    L² the same with the last sign reversed. All three drawn against &eta;<sub>s</sub>,
+    with &alpha;<sub>1D</sub>² of either sign.
+  </p>
+</header>
+
+<main class="container">
+  <aside class="panel">
+    <h2 class="section-title">Parameters</h2>
+
+    <div class="control-group">
+      <label><span>&alpha;<sub>1D</sub>²</span><span class="value" id="a1-val">1.00</span></label>
+      <div class="slider-wrap">
+          <input type="range" id="a1-slider" min="-1" max="1" step="0.01" value="1">
+          <span class="zero" style="--zero:0.5000"></span>
+        </div>
+    </div>
+
+    <div class="control-group">
+      <label><span>E<sub>1D</sub></span><span class="value" id="e1-val">0.150</span></label>
+      <div class="slider-wrap">
+          <input type="range" id="e1-slider" min="-1" max="1" step="0.005" value="0.15">
+          <span class="zero" style="--zero:0.5000"></span>
+        </div>
+    </div>
+
+    <div class="control-group">
+      <label><span>&eta;<sub>s</sub> marker</span><span class="value" id="hs-val">0.00</span></label>
+      <div class="slider-wrap">
+          <input type="range" id="hs-slider" min="-0.8" max="0.8" step="0.005" value="0">
+          <span class="zero" style="--zero:0.5000"></span>
+        </div>
+    </div>
+
+    <div class="control-group">
+      <label><span>span in &eta;<sub>s</sub></span><span class="value" id="sp-val">0.80</span></label>
+      <input type="range" id="sp-slider" min="0.2" max="1.2" step="0.01" value="0.8">
+    </div>
+
+    <div class="control-group">
+      <label><span>span in y</span><span class="value" id="spy-val">1.00</span></label>
+      <input type="range" id="spy-slider" min="0.1" max="6" step="0.05" value="1">
+      <p class="hint">
+        The vertical scale is fixed, not fitted to the curves, so changing
+        &alpha;<sub>1D</sub>&sup2; or E<sub>1D</sub> moves the curves rather than
+        the axis. They leave the frame once the boost is large enough.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>At the marker</h3>
+      <table class="readout" id="readout"></table>
+    </div>
+
+    <div class="group">
+      <h3>Curves</h3>
+      <div class="key"><i style="background:#ef4444"></i>E</div>
+      <div class="key"><i style="background:#3b82f6"></i>&alpha;²/4</div>
+      <div class="key"><i style="background:#22c55e"></i>L²</div>
+      <div class="key"><i style="background:rgba(16,185,129,0.45)"></i>both &alpha;² &ge; 0 and L² &ge; 0</div>
+      <div class="key"><i style="background:#e2e8f0"></i>&eta;<sub>r</sub> = 0, a stationary point</div>
+      <div class="key"><i style="background:#a78bfa"></i>the marker: this &eta;<sub>s</sub> on all three panels</div>
+    </div>
+
+    <div class="group">
+      <h3>What to look at</h3>
+      <p class="hint" id="story"></p>
+    </div>
+
+    <div class="group">
+      <h3>The centre &eta;<sub>r</sub></h3>
+      <p class="hint">
+        G = &alpha;&sup2;/4 + L&sup2; and E obey G&sup2; &minus; E&sup2; = &#119924;&sup2;,
+        so the pair is a vector on that hyperbola and its rapidity is the centre
+        of oscillation: tanh&thinsp;4&eta;<sub>r</sub> = E/G when &#119924;&sup2; &gt; 0,
+        and G/E when &#119924;&sup2; &lt; 0. The boost only translates it,
+        &eta;<sub>r</sub> = &eta;<sub>s</sub> + const, and the white mark is the boost
+        that brings it to zero. Differentiating gives E&prime; = 4G and
+        (&alpha;&sup2;/4)&prime; = (L&sup2;)&prime; = 2E, so that mark is exactly
+        where E is stationary when &#119924;&sup2; &lt; 0, and where the other two
+        are stationary, E crossing zero, when &#119924;&sup2; &gt; 0. E itself has no
+        stationary point there, since G&sup2; = E&sup2; + &#119924;&sup2; cannot vanish.
+      </p>
+    </div>
+
+    <div class="group">
+      <h3>Invariants</h3>
+      <p class="hint">
+        &alpha;²/4 &minus; L² = &alpha;<sub>1D</sub>²/4 holds at every &eta;<sub>s</sub>,
+        and (&alpha;²/4 + L²)² &minus; E² = &#119924;² = (&alpha;<sub>1D</sub>²/4)²
+        &minus; E<sub>1D</sub>². The first is why the two blue and amber curves
+        keep a constant gap; the second is the invariant of the boost.
+      </p>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="panel left">
+      <canvas id="plot" width="900" height="620"></canvas>
+    </div>
+    <div class="right">
+      <div class="panel">
+        <p class="cap" id="ueff-cap"></p>
+        <canvas id="ueff" width="620" height="330"></canvas>
+      </div>
+      <div class="panel">
+        <p class="cap">&alpha; and L at the marker, on the regions of the radial problem. The
+      dashed violet path is where the boost drags them.</p>
+        <canvas id="plane" width="620" height="360"></canvas>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+let A1 = 1, E1 = 0.15, HS = 0, SPAN = 0.8, SPANY = 1;
+
+// A = alpha_1D^2 / 4 is the natural group of the transformation: the three
+// quantities are A sinh + E1 cosh, (G + A)/2 and (G - A)/2 with
+// G = A cosh 4eta + E1 sinh 4eta.
+const vals = (h) => {
+    const A = A1 / 4, c = Math.cosh(4 * h), s = Math.sinh(4 * h);
+    const G = A * c + E1 * s;
+    return { E: A * s + E1 * c, G, aq: (G + A) / 2, L2: (G - A) / 2 };
+};
+
+// Where L^2 and alpha^2 vanish. Both follow from factoring with half angles:
+// G - A = 2 sinh2h (A sinh2h + E1 cosh2h)  ->  h = 0 always, and tanh2h = -E1/A
+// G + A = 2 cosh2h (A cosh2h + E1 sinh2h)  ->  tanh2h = -A/E1
+// so the extra roots exist only when M^2 > 0 and M^2 < 0 respectively.
+function roots() {
+    const A = A1 / 4;
+    const out = { zeroL: [0], zeroA: [] };
+    if (A !== 0 && Math.abs(E1) < Math.abs(A)) out.zeroL.push(0.5 * Math.atanh(-E1 / A));
+    if (E1 !== 0 && Math.abs(A) < Math.abs(E1)) out.zeroA.push(0.5 * Math.atanh(-A / E1));
+    return out;
+}
+
+// The pair (G, E) with G = alpha^2/4 + L^2 satisfies G^2 - E^2 = M^2, so a
+// boost only rotates it along that hyperbola, and its rapidity is the centre of
+// oscillation: G = M cosh 4eta_r, E = M sinh 4eta_r when M^2 > 0, and the
+// conjugate parametrisation when M^2 < 0. Either way eta_r = eta_s + const.
+function etaR(h) {
+    const v = vals(h), MM = (A1 / 4) ** 2 - E1 * E1;
+    const q = MM > 0 ? v.E / v.G : v.G / v.E;
+    return Math.abs(q) < 1 ? 0.25 * Math.atanh(q) : NaN;
+}
+
+const PAD = { l: 66, r: 18, t: 20, b: 36 };
+
+function draw() {
+    const cv = document.getElementById('plot');
+    const ctx = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
+
+    // A fixed vertical window, symmetric about zero, set by its own slider.
+    const lo = -SPANY, hi = SPANY;
+
+    const toX = (x) => PAD.l + ((x + SPAN) / (2 * SPAN)) * pw;
+    const toY = (y) => PAD.t + ph - ((y - lo) / (hi - lo)) * ph;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = '12px Inter';
+
+    // the physical window: both alpha^2 and L^2 non-negative
+    ctx.fillStyle = 'rgba(16,185,129,0.10)';
+    for (let px = 0; px < pw; px++) {
+        const v = vals(-SPAN + 2 * SPAN * (px + 0.5) / pw);
+        if (v.aq >= 0 && v.L2 >= 0) ctx.fillRect(PAD.l + px, PAD.t, 1, ph);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD.l, PAD.t, pw, ph);
+
+    // grid
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const stepX = SPAN > 0.6 ? 0.2 : 0.1;
+    for (let x = -Math.floor(SPAN / stepX) * stepX; x <= SPAN + 1e-9; x += stepX) {
+        const px = toX(x);
+        ctx.strokeStyle = Math.abs(x) < 1e-9 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)';
+        ctx.beginPath(); ctx.moveTo(px, PAD.t); ctx.lineTo(px, PAD.t + ph); ctx.stroke();
+        ctx.fillText(x.toFixed(1), px, PAD.t + ph + 7);
+    }
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const span = hi - lo;
+    const stepY = Math.pow(10, Math.floor(Math.log10(span / 4))) *
+                  (span / 4 / Math.pow(10, Math.floor(Math.log10(span / 4))) > 2 ? 2 : 1);
+    for (let y = Math.ceil(lo / stepY) * stepY; y <= hi + 1e-9; y += stepY) {
+        const py = toY(y);
+        ctx.strokeStyle = Math.abs(y) < 1e-12 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.moveTo(PAD.l, py); ctx.lineTo(PAD.l + pw, py); ctx.stroke();
+        ctx.fillText(y.toFixed(Math.max(0, -Math.floor(Math.log10(stepY)))), PAD.l - 8, py);
+    }
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('\u03b7\u209b', PAD.l + pw / 2, h - 8);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(PAD.l, PAD.t, pw, ph); ctx.clip();
+
+    // the roots, as vertical dashed lines
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    const rt = roots();
+    for (const r of rt.zeroL) {
+        ctx.strokeStyle = 'rgba(34,197,94,0.55)';
+        ctx.beginPath(); ctx.moveTo(toX(r), PAD.t); ctx.lineTo(toX(r), PAD.t + ph); ctx.stroke();
+    }
+    for (const r of rt.zeroA) {
+        ctx.strokeStyle = 'rgba(59,130,246,0.55)';
+        ctx.beginPath(); ctx.moveTo(toX(r), PAD.t); ctx.lineTo(toX(r), PAD.t + ph); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    const curve = (pick, colour) => {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        for (let i = 0; i <= 1000; i++) {
+            const x = -SPAN + 2 * SPAN * i / 1000;
+            const y = toY(pick(vals(x)));
+            i ? ctx.lineTo(toX(x), y) : ctx.moveTo(toX(x), y);
+        }
+        ctx.stroke();
+    };
+    curve((v) => v.E, '#ef4444');
+    curve((v) => v.aq, '#3b82f6');
+    curve((v) => v.L2, '#22c55e');
+
+    // Labels sit on the curves themselves, at the rightmost sample still inside
+    // the frame, so a label follows its curve as it climbs out of view. Near the
+    // top the three exit points crowd together, so overlapping labels are pushed
+    // down in turn.
+    const place = (pick) => {
+        for (let i = 1000; i >= 0; i--) {
+            const x = -SPAN + 2 * SPAN * i / 1000;
+            const y = pick(vals(x));
+            if (y > lo + 0.06 * (hi - lo) && y < hi - 0.06 * (hi - lo)) {
+                return { x: Math.min(toX(x), PAD.l + pw - 6), y: toY(y) - 9 };
+            }
+        }
+        return null;
+    };
+    const labels = [
+        { p: place((v) => v.E), t: 'E', c: '#ef4444' },
+        { p: place((v) => v.aq), t: '\u03b1\u00b2/4', c: '#3b82f6' },
+        { p: place((v) => v.L2), t: 'L\u00b2', c: '#22c55e' }
+    ].filter((d) => d.p).sort((a, b) => a.p.x - b.p.x);
+    ctx.font = '600 14px Inter';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    for (let i = 0; i < labels.length; i++) {
+        for (let j = 0; j < i; j++) {
+            if (Math.abs(labels[i].p.x - labels[j].p.x) < 52 &&
+                Math.abs(labels[i].p.y - labels[j].p.y) < 17) {
+                labels[i].p.y = labels[j].p.y + 18;
+            }
+        }
+        ctx.fillStyle = labels[i].c;
+        ctx.fillText(labels[i].t, labels[i].p.x,
+                     Math.min(labels[i].p.y, PAD.t + ph - 6));
+    }
+
+    // The boost that centres the motion, eta_r = 0. Differentiating gives
+    // E' = 4G and (alpha^2/4)' = (L^2)' = 2E, so this one point is where E is
+    // stationary when M^2 < 0, and where the other two are stationary, E
+    // crossing zero, when M^2 > 0. There is no stationary point of E in that
+    // case at all, since G^2 = E^2 + M^2 never vanishes.
+    const hCentre = -etaR(0);
+    if (Number.isFinite(hCentre) && Math.abs(hCentre) <= SPAN) {
+        const cxp = toX(hCentre), vc = vals(hCentre);
+        const MMc = (A1 / 4) ** 2 - E1 * E1;
+        ctx.strokeStyle = 'rgba(226,232,240,0.55)';
+        ctx.setLineDash([2, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cxp, PAD.t); ctx.lineTo(cxp, PAD.t + ph); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#e2e8f0';
+        const at = MMc < 0 ? [vc.E] : [vc.aq, vc.L2];
+        for (const y of at) {
+            ctx.beginPath(); ctx.arc(cxp, toY(y), 5.5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#10131a'; ctx.lineWidth = 1.5; ctx.stroke();
+        }
+        ctx.font = '600 13px Inter';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(MMc < 0 ? 'E\u2032 = 0' : '(\u03b1\u00b2/4)\u2032 = (L\u00b2)\u2032 = 0',
+                     cxp + 8, PAD.t + 16);
+    }
+
+    // the marker
+    // Violet is the current eta_s throughout: this line, the dot on the (alpha, L)
+    // plane and the energy level on U_eff are all the same state. White is kept
+    // for the distinguished point eta_r = 0 and for the wells.
+    const m = vals(HS), mx = toX(HS);
+    ctx.strokeStyle = 'rgba(167,139,250,0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(mx, PAD.t); ctx.lineTo(mx, PAD.t + ph); ctx.stroke();
+    const dots = [[m.E, '#ef4444'], [m.aq, '#3b82f6'], [m.L2, '#22c55e']];
+    for (const [y, c] of dots) {
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.arc(mx, toY(y), 5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+}
+
+
+// --- The radial problem the marker lands on ------------------------------
+// alpha^2 and L^2 come straight off the boost curves, E is the level. This is
+// the same construction as the effective-potential demo, driven by eta_s
+// instead of by its own sliders.
+
+const mr2 = (r) => (r * r) / (1 + r ** 4);            // m(r) r^2, fixed by r -> 1/r
+
+function radial() {
+    const m = vals(HS);
+    const a2 = 4 * m.aq, l2 = m.L2, E = m.E;
+    const ok = a2 >= 0 && l2 >= 0;
+    const al = Math.sqrt(Math.max(0, a2)), L = Math.sqrt(Math.max(0, l2));
+    const a1 = a2 - 4 * l2;                           // equals alpha_1D^2 exactly
+    const uTop = l2 + a2 / 4;
+    const split = a1 > 0 && l2 > 0;
+    const uMin = l2 === 0 ? 0 : (split ? al * L : uTop);
+    const r0 = split ? Math.sqrt((al - Math.sqrt(a1)) / (2 * L)) : 1;
+    return { a2, l2, E, ok, al, L, a1, uTop, uMin, split, r0,
+             U: (r) => { const t = mr2(r); return t > 0 ? l2 / (2 * t) + a2 * t / 2 : Infinity; } };
+}
+
+function drawUeff() {
+    const cv = document.getElementById('ueff');
+    const ctx = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    const P = { l: 58, r: 16, t: 14, b: 30 };
+    const pw = w - P.l - P.r, ph = h - P.t - P.b;
+    const R = radial();
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = '12px Inter';
+    document.getElementById('ueff-cap').innerHTML = R.ok
+        ? `U<sub>eff</sub> at &eta;<sub>s</sub> = ${HS.toFixed(2)}: &alpha;&sup2; = ${R.a2.toFixed(3)}, L&sup2; = ${R.l2.toFixed(3)}, E = ${R.E.toFixed(3)}`
+        : 'no real radial problem at this &eta;<sub>s</sub>';
+    if (!R.ok) {
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('\u03b1\u00b2 or L\u00b2 is negative here', w / 2, h / 2);
+        return;
+    }
+
+    const outer = R.split ? 1 / R.r0 : 1.6;
+    const rMax = Math.min(10, Math.max(3, 1.8 * outer));
+    const yMax = Math.max(R.uTop * 1.9, R.uMin + 0.35, R.E * 1.25);
+    const yMin = Math.min(0, R.E * 1.2);
+    const toX = (r) => P.l + (r / rMax) * pw;
+    const toY = (u) => P.t + ph - ((u - yMin) / (yMax - yMin)) * ph;
+
+    // energy bands
+    const yTop = toY(R.uTop), yMn = toY(R.uMin), yBot = toY(yMin);
+    ctx.fillStyle = 'rgba(148,163,184,0.10)';
+    ctx.fillRect(P.l, yMn, pw, Math.max(0, yBot - yMn));
+    if (R.split && yMn - yTop > 0.5) {
+        ctx.fillStyle = 'rgba(16,185,129,0.13)';
+        ctx.fillRect(P.l, yTop, pw, yMn - yTop);
+    }
+    ctx.fillStyle = 'rgba(239,68,68,0.11)';
+    ctx.fillRect(P.l, P.t, pw, Math.max(0, yTop - P.t));
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(P.l, P.t, pw, ph);
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const rStep = rMax <= 4 ? 0.5 : 1;
+    for (let r = 0; r <= rMax + 1e-9; r += rStep) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath(); ctx.moveTo(toX(r), P.t); ctx.lineTo(toX(r), P.t + ph); ctx.stroke();
+        ctx.fillText(r.toFixed(rStep < 1 ? 1 : 0), toX(r), P.t + ph + 6);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.moveTo(toX(1), P.t); ctx.lineTo(toX(1), P.t + ph); ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const stepU = (yMax - yMin) > 1 ? 0.25 : 0.05;
+    for (let u = Math.ceil(yMin / stepU) * stepU; u <= yMax + 1e-9; u += stepU) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.moveTo(P.l, toY(u)); ctx.lineTo(P.l + pw, toY(u)); ctx.stroke();
+        ctx.fillText(u.toFixed(2), P.l - 7, toY(u));
+    }
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('r', P.l + pw / 2, h - 5);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(P.l, P.t, pw, ph); ctx.clip();
+    ctx.strokeStyle = R.split ? '#38bdf8' : '#f472b6';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for (let i = 1; i <= 1200; i++) {
+        const r = rMax * i / 1200;
+        i > 1 ? ctx.lineTo(toX(r), toY(R.U(r))) : ctx.moveTo(toX(r), toY(R.U(r)));
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
+    const wells = R.split ? [R.r0, 1 / R.r0] : (R.l2 > 0 ? [1] : []);
+    for (const r of wells) {
+        ctx.beginPath(); ctx.arc(toX(r), toY(R.U(r)), 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (R.split) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.arc(toX(1), toY(R.uTop), 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = '#a78bfa';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(P.l, toY(R.E)); ctx.lineTo(P.l + pw, toY(R.E)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
+function drawPlane() {
+    const cv = document.getElementById('plane');
+    const ctx = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    const P = { l: 46, r: 16, t: 16, b: 30 };
+    const pw = w - P.l - P.r, ph = h - P.t - P.b;
+    const R = radial(), E = R.E;
+
+    // Axes wide enough for the whole physical stretch of the boost, so the path
+    // the parameters travel stays inside the frame.
+    let aMax = 1, lMax = 0.6;
+    for (let i = 0; i <= 400; i++) {
+        const v = vals(-SPAN + 2 * SPAN * i / 400);
+        if (v.aq >= 0 && v.L2 >= 0) {
+            aMax = Math.max(aMax, Math.sqrt(4 * v.aq));
+            lMax = Math.max(lMax, Math.sqrt(v.L2));
+        }
+    }
+    aMax = Math.min(12, aMax * 1.15); lMax = Math.min(12, lMax * 1.15);
+    const toX = (a) => P.l + (a / aMax) * pw;
+    const toY = (L) => P.t + ph - (L / lMax) * ph;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = '12px Inter';
+
+    const BG = [16, 19, 26];
+    const mix = (c, a) => [BG[0] + (c[0] - BG[0]) * a, BG[1] + (c[1] - BG[1]) * a,
+                           BG[2] + (c[2] - BG[2]) * a];
+    const FILL = { pos: mix([16, 185, 129], 0.20), neg: mix([239, 68, 68], 0.15),
+                   none: mix([148, 163, 184], 0.09) };
+    const img = ctx.createImageData(pw, ph);
+    for (let py = 0; py < ph; py++) {
+        const L = ((ph - py - 0.5) / ph) * lMax, l2 = L * L;
+        for (let px = 0; px < pw; px++) {
+            const al = ((px + 0.5) / pw) * aMax, a2 = al * al;
+            const a1 = a2 - 4 * l2, uTop = l2 + a2 / 4;
+            const uMin = a1 > 0 ? al * L : uTop;
+            const rgb = E < uMin ? FILL.none : (a1 > 0 && E < uTop) ? FILL.pos : FILL.neg;
+            const k = 4 * (py * pw + px);
+            img.data[k] = rgb[0]; img.data[k + 1] = rgb[1];
+            img.data[k + 2] = rgb[2]; img.data[k + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, P.l, P.t);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(P.l, P.t, pw, ph); ctx.clip();
+    const curve = (f, from, to, colour, dash) => {
+        ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.setLineDash(dash || []);
+        ctx.beginPath();
+        let pen = false;
+        for (let i = 0; i <= 400; i++) {
+            const al = from + (to - from) * i / 400, L = f(al);
+            if (!Number.isFinite(L) || L < 0) { pen = false; continue; }
+            const x = toX(al), y = toY(L);
+            if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+    };
+    curve((al) => al / 2, 0, aMax, '#ef4444');
+    if (E > 0) {
+        const aT = Math.sqrt(2 * E);
+        curve((al) => E / al, Math.min(aT, aMax), aMax, '#22c55e');
+        curve((al) => E / al, 1e-6, Math.min(aT, aMax), 'rgba(34,197,94,0.55)', [4, 4]);
+        curve((al) => Math.sqrt(Math.max(0, E - al * al / 4)), 0,
+              Math.min(aMax, 2 * Math.sqrt(E)), '#3b82f6');
+    }
+
+    // The path the boost drags the parameters along: alpha^2/4 - L^2 is fixed,
+    // so it is a hyperbola whose asymptote is the red line alpha = 2L.
+    ctx.strokeStyle = 'rgba(167,139,250,0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i <= 600; i++) {
+        const v = vals(-SPAN + 2 * SPAN * i / 600);
+        if (v.aq < 0 || v.L2 < 0) { pen = false; continue; }
+        const x = toX(Math.sqrt(4 * v.aq)), y = toY(Math.sqrt(v.L2));
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (R.ok) {
+        ctx.fillStyle = '#a78bfa';
+        ctx.strokeStyle = '#10131a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(toX(R.al), toY(R.L), 5.5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(P.l, P.t, pw, ph);
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const sA = aMax > 4 ? 1 : 0.5;
+    for (let a = 0; a <= aMax + 1e-9; a += sA) ctx.fillText(a.toFixed(sA < 1 ? 1 : 0), toX(a), P.t + ph + 6);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const sL = lMax > 2 ? 0.5 : 0.25;
+    for (let L = 0; L <= lMax + 1e-9; L += sL) ctx.fillText(L.toFixed(2), P.l - 7, toY(L));
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('\u03b1', P.l + pw / 2, h - 5);
+    ctx.textAlign = 'left';
+    ctx.fillText('L', P.l + 6, P.t + 13);
+}
+
+function refresh() {
+    document.getElementById('a1-val').textContent = A1.toFixed(2);
+    document.getElementById('e1-val').textContent = E1.toFixed(3);
+    document.getElementById('hs-val').textContent = HS.toFixed(2);
+    document.getElementById('sp-val').textContent = SPAN.toFixed(2);
+    document.getElementById('spy-val').textContent = SPANY.toFixed(2);
+
+    const A = A1 / 4, MM = A * A - E1 * E1, m = vals(HS), rt = roots();
+    document.getElementById('readout').innerHTML = `
+      <tr><td>E</td><td>${m.E.toFixed(4)}</td></tr>
+      <tr><td>&alpha;&sup2;/4</td><td>${m.aq.toFixed(4)}</td></tr>
+      <tr><td>L&sup2;</td><td>${m.L2.toFixed(4)}</td></tr>
+      <tr><td>&#119924;&sup2;</td><td>${MM.toFixed(4)}</td></tr>
+      <tr><td>&eta;<sub>r</sub> at marker</td><td>${Number.isFinite(etaR(HS)) ? etaR(HS).toFixed(4) : '&mdash;'}</td></tr>
+      <tr><td>&eta;<sub>r</sub> at &eta;<sub>s</sub> = 0</td><td>${Number.isFinite(etaR(0)) ? etaR(0).toFixed(4) : '&mdash;'}</td></tr>
+      <tr><td>physical</td><td>${m.aq >= 0 && m.L2 >= 0 ? 'yes' : 'no'}</td></tr>
+      <tr><td>L&sup2; = 0 at</td><td>${rt.zeroL.map((r) => r.toFixed(3)).join(', ')}</td></tr>
+      <tr><td>&alpha;&sup2; = 0 at</td><td>${rt.zeroA.length ? rt.zeroA.map((r) => r.toFixed(3)).join(', ') : '&mdash;'}</td></tr>`;
+
+    const s = document.getElementById('story');
+    if (MM > 0) {
+        s.innerHTML = A1 > 0
+          ? `&#119924;&sup2; &gt; 0 and &alpha;<sub>1D</sub>&sup2; &gt; 0. &alpha;&sup2; never vanishes,
+             while L&sup2; touches zero twice, at &eta;<sub>s</sub> = 0 and at
+             &frac12;artanh(&minus;4E<sub>1D</sub>/&alpha;<sub>1D</sub>&sup2;), and dips below in
+             between: that window is not reachable from a real two-dimensional problem.`
+          : `&#119924;&sup2; &gt; 0 with &alpha;<sub>1D</sub>&sup2; &lt; 0. Then
+             &alpha;&sup2;/4 = (G + A)/2 stays negative for every boost, so no
+             &eta;<sub>s</sub> gives a real &alpha;: the whole line is unphysical.`;
+    } else if (MM < 0) {
+        s.innerHTML = `&#119924;&sup2; &lt; 0. Now it is &alpha;&sup2; that changes sign, once, at
+             &frac12;artanh(&minus;&alpha;<sub>1D</sub>&sup2;/4E<sub>1D</sub>), while L&sup2; crosses
+             zero only at &eta;<sub>s</sub> = 0. The physical window is bounded by those two
+             crossings, and it is the only part of the line where a real 2D problem exists.`;
+    } else {
+        s.innerHTML = `&#119924;&sup2; = 0, the separatrix: the two roots have merged.`;
+    }
+
+    draw();
+    drawUeff();
+    drawPlane();
+}
+
+function bind(id, set) {
+    const el = document.getElementById(id);
+    el.addEventListener('input', (e) => { set(parseFloat(e.target.value)); refresh(); });
+    return el;
+}
+bind('a1-slider', (v) => { A1 = v; });
+bind('e1-slider', (v) => { E1 = v; });
+const hsSlider = bind('hs-slider', (v) => { HS = v; });
+bind('spy-slider', (v) => { SPANY = v; });
+bind('sp-slider', (v) => {
+    SPAN = v;
+    hsSlider.min = String(-v); hsSlider.max = String(v);
+    HS = Math.max(-v, Math.min(v, HS));
+    hsSlider.value = String(HS);
+});
+
+// dragging anywhere on the plot moves the marker
+(function attachMarkerDrag() {
+    const cv = document.getElementById('plot');
+    let dragging = false;
+    const etaAt = (ev) => {
+        const r = cv.getBoundingClientRect();
+        const px = (ev.clientX - r.left) * cv.width / r.width;
+        const pw = cv.width - PAD.l - PAD.r;
+        return -SPAN + 2 * SPAN * (px - PAD.l) / pw;
+    };
+    const set = (ev) => {
+        const st = parseFloat(hsSlider.step);
+        const v = Math.max(-SPAN, Math.min(SPAN,
+            Math.round(etaAt(ev) / st) * st));
+        if (v === HS) return;
+        HS = v; hsSlider.value = String(v); refresh();
+    };
+    cv.addEventListener('pointerdown', (ev) => {
+        dragging = true; cv.setPointerCapture(ev.pointerId);
+        cv.style.cursor = 'ew-resize'; set(ev); ev.preventDefault();
+    });
+    cv.addEventListener('pointermove', (ev) => { if (dragging) { set(ev); ev.preventDefault(); } });
+    const release = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        if (cv.hasPointerCapture(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);
+        cv.style.cursor = 'default';
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+})();
+
+refresh();
+</script>
+</body>
+</html>
